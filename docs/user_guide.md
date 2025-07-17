@@ -44,7 +44,7 @@ DDoS.AI is an advanced platform for detecting and analyzing Distributed Denial o
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/ddosai-platform.git
+git clone https://github.com/AskitEndo/DDOSai_v2.git
 cd ddosai-platform
 ```
 

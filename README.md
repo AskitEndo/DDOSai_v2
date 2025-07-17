@@ -65,11 +65,11 @@ DDoS.AI is an advanced platform that combines multiple AI models to detect, anal
 ## 🖼️ Screenshots
 
 <div align="center">
-  <img src="docs/images/dashboard.png" alt="Dashboard" width="45%"/>
-  <img src="docs/images/network-graph.png" alt="Network Graph" width="45%"/>
+  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Dashboard" width="45%"/>
+  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Network Graph" width="45%"/>
   <br>
-  <img src="docs/images/threat-detection.png" alt="Threat Detection" width="45%"/>
-  <img src="docs/images/simulation.png" alt="Attack Simulation" width="45%"/>
+  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Threat Detection" width="45%"/>
+  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Attack Simulation" width="45%"/>
 </div>
 
 ## 🚀 Quick Start
@@ -78,7 +78,7 @@ DDoS.AI is an advanced platform that combines multiple AI models to detect, anal
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ddosai-platform.git
+git clone https://github.com/AskitEndo/DDOSai_v2.git
 cd ddosai-platform
 
 # Start the platform
@@ -404,4 +404,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Contact
 
-For questions, feedback, or support, please [open an issue](https://github.com/yourusername/ddosai-platform/issues) on GitHub.
+For questions, feedback, or support, please [open an issue](https://github.com/AskitEndo/DDOSai_v2/issues) on GitHub.

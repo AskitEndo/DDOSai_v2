@@ -45,7 +45,7 @@ The full setup includes all components: backend, frontend, database, Redis, Prom
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ddosai-platform.git
+git clone https://github.com/AskitEndo/DDOSai_v2.git
 cd ddosai-platform
 
 # Start all services
