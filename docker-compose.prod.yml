@@ -1,0 +1,323 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=production
+    image: ddosai/backend:latest
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - JSON_LOGS=true
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CORS_ORIGINS=https://ddosai.example.com
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ddosai
+      - POSTGRES_USER=${POSTGRES_USER:-ddosai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - API_KEY_HEADER=X-API-Key
+      - API_KEY=${API_KEY:-changeme}
+      - MODEL_THRESHOLD=0.75
+      - MAX_WORKERS=4
+      - ENABLE_PROMETHEUS=true
+      - PROMETHEUS_PORT=8001
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - backend_data:/app/data
+      - backend_models:/app/models
+      - backend_logs:/app/logs
+    depends_on:
+      - redis
+      - postgres
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - backend_network
+      - monitoring_network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=production
+        - API_URL=https://api.ddosai.example.com
+        - WS_URL=wss://api.ddosai.example.com/ws
+    image: ddosai/frontend:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    networks:
+      - frontend_network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-changeme} --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    networks:
+      - backend_network
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=ddosai
+      - POSTGRES_USER=${POSTGRES_USER:-ddosai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ddosai} -d ddosai"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+    networks:
+      - backend_network
+    security_opt:
+      - no-new-privileges:true
+
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.external-url=https://prometheus.ddosai.example.com"
+      - "--web.enable-lifecycle"
+    ports:
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 1G
+        reservations:
+          cpus: "0.1"
+          memory: 256M
+    networks:
+      - monitoring_network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  grafana:
+    image: grafana/grafana:10.0.3
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.ddosai.example.com
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test:
+        ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    networks:
+      - monitoring_network
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - prometheus
+
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+      - grafana
+      - prometheus
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    networks:
+      - frontend_network
+      - monitoring_network
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/run
+
+  backup:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    volumes:
+      - ./backup:/backup
+      - postgres_data:/var/lib/postgresql/data:ro
+      - backend_data:/app/data:ro
+      - backend_models:/app/models:ro
+    command: |
+      sh -c 'while true; do
+        DATE=$$(date +%Y%m%d_%H%M%S);
+        pg_dump -h postgres -U $$POSTGRES_USER -d ddosai -f /backup/ddosai_$$DATE.sql;
+        tar -czf /backup/data_$$DATE.tar.gz -C /app/data .;
+        tar -czf /backup/models_$$DATE.tar.gz -C /app/models .;
+        find /backup -name "*.sql" -type f -mtime +7 -delete;
+        find /backup -name "*.tar.gz" -type f -mtime +7 -delete;
+        sleep 86400;
+      done'
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-ddosai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - backend_network
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  backend_data:
+  backend_models:
+  backend_logs:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  nginx_cache:
+  nginx_logs:
+
+networks:
+  frontend_network:
+    driver: bridge
+  backend_network:
+    driver: bridge
+    internal: true
+  monitoring_network:
+    driver: bridge
+    internal: true

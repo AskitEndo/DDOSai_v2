@@ -1,0 +1,123 @@
+groups:
+  - name: ddosai_alerts
+    rules:
+      # System alerts
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage (instance {{ $labels.instance }})"
+          description: "CPU usage is above 85% for 5 minutes\n  VALUE = {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage (instance {{ $labels.instance }})"
+          description: "Memory usage is above 90% for 5 minutes\n  VALUE = {{ $value }}%"
+
+      - alert: HighDiskUsage
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage (instance {{ $labels.instance }})"
+          description: "Disk usage is above 90% for 5 minutes\n  VALUE = {{ $value }}%"
+
+      # Application alerts
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend service is down"
+          description: "Backend service has been down for more than 1 minute"
+
+      - alert: HighErrorRate
+        expr: rate(ddosai_errors_total[5m]) / rate(ddosai_packets_total[5m]) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate"
+          description: "Error rate is above 5% for 2 minutes\n  VALUE = {{ $value }}%"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(ddosai_packet_processing_time_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High processing latency"
+          description: "95th percentile latency is above 500ms for 5 minutes\n  VALUE = {{ $value }}s"
+
+      - alert: HighThreatLevel
+        expr: ddosai_threat_level > 3
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High threat level detected"
+          description: "Threat level is above 3 for 2 minutes\n  VALUE = {{ $value }}"
+
+      - alert: HighMaliciousTraffic
+        expr: rate(ddosai_malicious_packets_total[5m]) / rate(ddosai_packets_total[5m]) * 100 > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High malicious traffic detected"
+          description: "Malicious traffic is above 10% for 2 minutes\n  VALUE = {{ $value }}%"
+
+      # Database alerts
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"
+
+      # Nginx alerts
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Nginx is down"
+          description: "Nginx has been down for more than 1 minute"
+
+      - alert: HighHttp4xxErrorRate
+        expr: sum(rate(nginx_http_requests_total{status=~"^4.."}[5m])) / sum(rate(nginx_http_requests_total[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 4xx error rate"
+          description: "HTTP 4xx error rate is above 5% for 5 minutes\n  VALUE = {{ $value }}%"
+
+      - alert: HighHttp5xxErrorRate
+        expr: sum(rate(nginx_http_requests_total{status=~"^5.."}[5m])) / sum(rate(nginx_http_requests_total[5m])) * 100 > 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: "HTTP 5xx error rate is above 1% for 5 minutes\n  VALUE = {{ $value }}%"

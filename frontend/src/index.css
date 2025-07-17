@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #00f5ff;
+  --secondary-color: #ff073a;
+  --warning-color: #ff8c00;
+  --success-color: #39ff14;
+  --dark-bg: #0a0a0a;
+  --dark-surface: #121212;
+  --dark-border: #333333;
+}
+
+body {
+  font-family: "JetBrains Mono", monospace;
+  background-color: var(--dark-bg);
+  color: #ffffff;
+  margin: 0;
+  padding: 0;
+}
+
+/* Cyber glow effect */
+.cyber-glow {
+  text-shadow: 0 0 5px var(--primary-color), 0 0 10px var(--primary-color);
+}
+
+/* Pulse glow animation */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px var(--primary-color));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px var(--primary-color));
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Network graph styles */
+.network-node {
+  transition: all 0.2s ease;
+}
+
+.network-node:hover {
+  filter: drop-shadow(0 0 5px var(--primary-color));
+}
+
+.network-edge {
+  transition: all 0.2s ease;
+}
+
+/* Tooltip styles */
+.graph-tooltip {
+  transition: opacity 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+/* Dashboard card hover effects */
+.dashboard-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Alert animation */
+@keyframes alert-pulse {
+  0%,
+  100% {
+    background-color: rgba(255, 7, 58, 0.1);
+  }
+  50% {
+    background-color: rgba(255, 7, 58, 0.2);
+  }
+}
+
+.alert-pulse {
+  animation: alert-pulse 2s ease-in-out infinite;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Button hover effects */
+.btn-hover-glow:hover {
+  box-shadow: 0 0 10px var(--primary-color);
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-online {
+  background-color: var(--success-color);
+  box-shadow: 0 0 5px var(--success-color);
+}
+
+.status-offline {
+  background-color: var(--secondary-color);
+  box-shadow: 0 0 5px var(--secondary-color);
+}
+
+.status-warning {
+  background-color: var(--warning-color);
+  box-shadow: 0 0 5px var(--warning-color);
+}
+
+/* Code blocks */
+.code-block {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 1rem;
+  font-family: "JetBrains Mono", monospace;
+  overflow-x: auto;
+}
+
+/* Terminal-like text */
+.terminal-text {
+  font-family: "JetBrains Mono", monospace;
+  color: #00ff00;
+  background-color: #000;
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+/* Threat level indicators */
+.threat-low {
+  color: var(--success-color);
+}
+
+.threat-medium {
+  color: var(--warning-color);
+}
+
+.threat-high {
+  color: var(--secondary-color);
+}
+
+.threat-critical {
+  color: var(--secondary-color);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .responsive-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .responsive-flex {
+    flex-direction: column;
+  }
+}
