@@ -57,6 +57,12 @@ class AIModelNotFoundError(AIModelError):
         super().__init__(message, status_code=status.HTTP_404_NOT_FOUND, details=details)
 
 
+class ModelInferenceError(AIModelError):
+    """Exception for model inference errors"""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, details=details)
+
+
 class TrafficIngestionError(DDoSAIException):
     """Errors during traffic ingestion and parsing"""
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
@@ -65,6 +71,12 @@ class TrafficIngestionError(DDoSAIException):
 
 class FeatureExtractionError(DDoSAIException):
     """Errors during feature extraction from packets"""
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, details=details)
+
+
+class FlowAnalysisError(DDoSAIException):
+    """Errors during network flow analysis"""
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, details=details)
 

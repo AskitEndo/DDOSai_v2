@@ -864,11 +864,16 @@ async def startup_event():
         init_influxdb()
         
         # Initialize metrics collection
-        from core.metrics import MetricsCollector
-        enable_prometheus = os.environ.get("ENABLE_PROMETHEUS", "true").lower() == "true"
-        prometheus_port = int(os.environ.get("PROMETHEUS_PORT", "8001"))
-        MetricsCollector.initialize(enable_prometheus=enable_prometheus, prometheus_port=prometheus_port)
-        logger.info(f"Metrics collection initialized (Prometheus: {enable_prometheus}, Port: {prometheus_port})")
+        try:
+            from core.metrics import MetricsCollector
+            enable_prometheus = os.environ.get("ENABLE_PROMETHEUS", "false").lower() == "true"  # Default to false
+            prometheus_port = int(os.environ.get("PROMETHEUS_PORT", "8001"))
+            MetricsCollector.initialize(enable_prometheus=enable_prometheus, prometheus_port=prometheus_port)
+            logger.info(f"Metrics collection initialized (Prometheus: {enable_prometheus}, Port: {prometheus_port})")
+        except ImportError:
+            logger.warning("Prometheus client not installed. Metrics collection disabled.")
+            # Set environment variable to disable Prometheus
+            os.environ["ENABLE_PROMETHEUS"] = "false"
         
         # Start watchdog process
         from core.recovery import ErrorRecovery
@@ -882,19 +887,9 @@ async def startup_event():
         ErrorRecovery.record_error(e, is_critical=True)
         raise
 
-# Initialize AI components immediately for testing
+# Don't initialize AI components immediately - let the startup event handle it
+# This avoids running the event loop twice and causing RuntimeError
 import asyncio
-try:
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(initialize_ai_components())
-except RuntimeError:
-    # If there's no event loop (e.g., in tests), create one
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(initialize_ai_components())
-except Exception as e:
-    logger.error(f"Error initializing AI components: {e}")
-    # Don't raise here to allow the application to start
 
 @app.on_event("shutdown")
 async def shutdown_event():

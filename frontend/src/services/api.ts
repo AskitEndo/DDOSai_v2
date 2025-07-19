@@ -35,6 +35,13 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     console.error("API Error:", error);
+
+    // Check if this is a network error (likely offline mode)
+    if (error.code === "ERR_NETWORK") {
+      // Store offline status in localStorage to persist across page reloads
+      localStorage.setItem("ddosai_offline_mode", "true");
+    }
+
     return Promise.reject(error);
   }
 );

@@ -65,11 +65,11 @@ DDoS.AI is an advanced platform that combines multiple AI models to detect, anal
 ## 🖼️ Screenshots
 
 <div align="center">
-  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Dashboard" width="45%"/>
-  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Network Graph" width="45%"/>
+  <img src="https://placehold.co/600x400?text=COMING%0ASOON&font=mono" alt="Dashboard" width="45%"/>
+  <img src="https://placehold.co/600x400?text=COMING%0ASOON&font=mono" alt="Network Graph" width="45%"/>
   <br>
-  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Threat Detection" width="45%"/>
-  <img src="https://placehold.co/600x400?font=roboto?text=COMING\nSOON" alt="Attack Simulation" width="45%"/>
+  <img src="https://placehold.co/600x400?text=COMING%0ASOON&font=mono" alt="Threat Detection" width="45%"/>
+  <img src="https://placehold.co/600x400?text=COMING%0ASOON&font=mono" alt="Attack Simulation" width="45%"/>
 </div>
 
 ## 🚀 Quick Start
