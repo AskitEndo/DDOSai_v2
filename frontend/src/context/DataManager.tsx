@@ -208,14 +208,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({
     dispatch({ type: "SET_LOADING", payload: true });
     try {
       // Import API service to avoid circular dependencies
-      const { api } = await import("../services/api");
+      const api = (await import("../services/api")).default;
 
-      const [metricsResponse, detectionsResponse, networkResponse] =
-        await Promise.allSettled([
-          api.getSystemMetrics(),
-          api.getDetections(50),
-          api.getNetworkGraph(),
-        ]);
+      const [
+        metricsResponse,
+        detectionsResponse,
+        networkResponse,
+        monitoringResponse,
+      ] = await Promise.allSettled([
+        api.getSystemMetrics(),
+        api.getDetections(50),
+        api.getNetworkGraph(),
+        api.getNetworkMonitoringData(),
+      ]);
 
       const backendData: {
         detections?: DetectionResult[];
@@ -245,6 +250,51 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({
         networkResponse.value.status === 200
       ) {
         backendData.networkGraph = networkResponse.value.data;
+      }
+
+      // Process monitoring data
+      if (
+        monitoringResponse.status === "fulfilled" &&
+        monitoringResponse.value.status === 200
+      ) {
+        const monitoringData = monitoringResponse.value.data;
+
+        // If monitoring is active and has detected attacks, add them to detections
+        if (
+          monitoringData.monitoring_active &&
+          monitoringData.detected_attacks.length > 0
+        ) {
+          const networkDetections = monitoringData.detected_attacks.map(
+            (attack: any) => ({
+              timestamp: attack.timestamp,
+              packet_id: `network_${Date.now()}_${Math.random()}`,
+              flow_id: `flow_${attack.source_ip}_${attack.destination_ip}`,
+              src_ip: attack.source_ip,
+              dst_ip: attack.destination_ip,
+              src_port: 0,
+              dst_port: 0,
+              protocol: attack.protocol,
+              is_malicious: attack.is_malicious,
+              threat_score: attack.confidence * 100,
+              attack_type: attack.attack_type,
+              detection_method: "network_monitor",
+              confidence: attack.confidence,
+              explanation: {
+                source: "network_monitor",
+                flags: attack.flags,
+                packet_size: attack.packet_size,
+                severity: attack.severity,
+              },
+              model_version: "network_monitor_v1.0",
+            })
+          );
+
+          // Merge with existing detections
+          backendData.detections = [
+            ...(backendData.detections || []),
+            ...networkDetections,
+          ];
+        }
       }
 
       dispatch({

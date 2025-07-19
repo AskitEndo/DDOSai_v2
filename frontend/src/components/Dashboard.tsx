@@ -23,6 +23,7 @@ import MetricsPanel from "./MetricsPanel";
 import XAIPanel from "./XAIPanel";
 import DetectionDetails from "./DetectionDetails";
 import DataControls from "./DataControls";
+import NetworkMonitoring from "./NetworkMonitoring";
 
 const Dashboard: React.FC = () => {
   const { state: appState, dispatch: appDispatch } = useAppContext();
@@ -213,6 +214,9 @@ const Dashboard: React.FC = () => {
           loading={actualMetricsLoading}
         />
       </div>
+
+      {/* Network Monitoring Panel */}
+      <NetworkMonitoring className="w-full" />
 
       {/* Main Dashboard Panels */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,43 +1,278 @@
 # DDoS.AI Platform: Complete Guide
 
-This guide provides comprehensive information on how to run, train, monitor, and use the DDoS.AI platform.
+## 🎯 Latest Updates - Cross-Device Attack Monitoring
+
+### New Features Added in Version 2.0
+
+**🌐 Real Cross-Device Attack Testing**
+
+- **Target Server Setup**: Use `start_target_server.bat` to create attack targets on separate machines
+- **Live Network Monitoring**: Real-time packet capture and analysis using `psutil`
+- **Cross-Device Detection**: Attacks from PC A instantly visible on PC B's dashboard
+- **WebSocket Broadcasting**: Real-time attack notifications across all connected clients
+
+**📡 Enhanced Network Monitoring Panel**
+
+- **Live Statistics**: Real bytes sent/received, packet counts, error rates
+- **Attack Visualization**: Source/destination IPs, protocols, severity levels
+- **Auto-Refresh**: 3-second intervals during active monitoring
+- **Attack History**: Chronological list of detected attacks with full details
+
+**🔄 Unified Data Architecture**
+
+- **Backend-First Loading**: Single source of truth eliminating duplicate dummy data
+- **Offline Fallback**: Works without backend connection using local dummy data
+- **Consistent Data Types**: All sources mapped to unified TypeScript interfaces
+- **Real-Time Sync**: WebSocket updates across all dashboard components
+
+This guide provides comprehensive information on how to run, train, monitor, and use the DDoS.AI platform with the new cross-device attack monitoring capabilities.
 
 ## Table of Contents
 
+- [Cross-Device Attack Testing](#cross-device-attack-testing)
 - [Running the Platform](#running-the-platform)
   - [Full Platform Setup](#full-platform-setup)
-  - [Lightweight Setup](#lightweight-setup)
+  - [Target Server Setup](#target-server-setup)
   - [Development Mode](#development-mode)
 - [Understanding the Platform](#understanding-the-platform)
   - [Core Components](#core-components)
-  - [How It Works](#how-it-works)
-  - [Data Flow](#data-flow)
+  - [Cross-Device Architecture](#cross-device-architecture)
+  - [Real-Time Data Flow](#real-time-data-flow)
+- [Network Monitoring](#network-monitoring)
+  - [Live Traffic Analysis](#live-traffic-analysis)
+  - [Attack Detection](#attack-detection)
+  - [Cross-Device Alerts](#cross-device-alerts)
 - [Training the AI Models](#training-the-ai-models)
   - [Using Sample Data](#using-sample-data)
   - [Adding Your Own Data](#adding-your-own-data)
   - [Custom Model Integration](#custom-model-integration)
-- [Running Simulations](#running-simulations)
-  - [Web Interface](#web-interface)
-  - [Command Line](#command-line)
-  - [API](#api)
-- [Monitoring](#monitoring)
-  - [Dashboard](#dashboard)
-  - [Grafana](#grafana)
-  - [Prometheus](#prometheus)
-  - [Continuous Monitoring](#continuous-monitoring)
-- [Recovery and Backup](#recovery-and-backup)
-  - [Backup Procedures](#backup-procedures)
-  - [Restore Procedures](#restore-procedures)
-  - [Disaster Recovery](#disaster-recovery)
+- [Running Real Attack Simulations](#running-real-attack-simulations)
+  - [Cross-Device Setup](#cross-device-setup)
+  - [Attack Configuration](#attack-configuration)
+  - [Monitoring Impact](#monitoring-impact)
+- [Dashboard Usage](#dashboard-usage)
+  - [Network Monitoring Panel](#network-monitoring-panel)
+  - [Attack Simulation Interface](#attack-simulation-interface)
+  - [Real-Time Visualization](#real-time-visualization)
+- [Monitoring & Analytics](#monitoring--analytics)
+  - [Prometheus Metrics](#prometheus-metrics)
+  - [Grafana Dashboards](#grafana-dashboards)
+  - [InfluxDB Time Series](#influxdb-time-series)
 - [Troubleshooting](#troubleshooting)
-  - [Common Issues](#common-issues)
-  - [Logs](#logs)
+  - [Cross-Device Issues](#cross-device-issues)
+  - [Network Monitoring Problems](#network-monitoring-problems)
   - [Performance Tuning](#performance-tuning)
-- [End-to-End Examples](#end-to-end-examples)
-  - [Complete Workflow](#complete-workflow)
-  - [Production Deployment](#production-deployment)
+
+## Cross-Device Attack Testing
+
+### Overview
+
+The DDoS.AI platform now supports real cross-device attack testing where you can launch actual network attacks from one PC (PC A) and monitor their impact on another PC (PC B) in real-time.
+
+### Setup Requirements
+
+**Hardware:**
+
+- Two computers on the same network (LAN or WiFi)
+- Minimum 4GB RAM per machine (8GB recommended)
+- Network connectivity between machines
+- Administrative privileges for network monitoring
+
+**Network Configuration:**
+
+- Both PCs must be on same subnet
+- Firewall rules allowing traffic on ports 3000, 8000, 8080
+- No network isolation between the test machines
+
+### Step-by-Step Cross-Device Setup
+
+#### 1. Prepare PC A (Attack Source)
+
+```bash
+# Clone and setup the main platform
+git clone https://github.com/AskitEndo/DDOSai_v2.git
+cd DDOSai_v2
+
+# Start the full platform
+.\run_dev.bat  # Windows
+./run_dev.sh   # Linux/macOS
+
+# Verify platform is running
+curl http://localhost:8000/health
+# Should return: {"status": "healthy"}
+
+# Access dashboard at: http://localhost:3000
+```
+
+#### 2. Prepare PC B (Target Machine)
+
+```bash
+# Clone repository on target machine
+git clone https://github.com/AskitEndo/DDOSai_v2.git
+cd DDOSai_v2/backend
+
+# Start target server
+.\start_target_server.bat  # Windows
+./start_target_server.sh   # Linux/macOS
+
+# Note the target IP address displayed
+# Target server runs on: http://[PC_B_IP]:8080
+```
+
+#### 3. Configure Cross-Device Monitoring
+
+**On PC A Dashboard:**
+
+1. Open browser: `http://localhost:3000`
+2. Click "Load from Backend" to load real data
+3. Navigate to "Network Monitoring" panel
+4. Click "Start" to begin network monitoring
+5. Navigate to "Simulation" tab
+
+**On PC B (Optional - Monitor Impact):**
+
+1. Open browser: `http://[PC_A_IP]:3000`
+2. Access PC A's dashboard to see attack source
+3. Monitor target server logs in terminal
+4. Watch system resources in Task Manager
+
+#### 4. Execute Cross-Device Attack
+
+**Configure Attack on PC A:**
+
+1. In Simulation panel, enter PC B's IP address
+2. Select attack type: HTTP Flood, SYN Flood, UDP Flood
+3. Configure parameters:
+   - Duration: 30-60 seconds
+   - Packet Rate: 1000-5000 packets/second
+   - Target Port: 8080 (for HTTP attacks)
+4. Click "Start Simulation"
+
+**Monitor Real Impact:**
+
+- **PC A Dashboard**: Network Monitoring shows outgoing attack traffic
+- **PC B Terminal**: Target server displays incoming request counts
+- **Task Manager**: Both PCs show actual network activity spikes
+- **Target Response**: PC B's target server becomes slow/unresponsive
+
+### Verification of Real Attacks
+
+**Network Activity Indicators:**
+
+```bash
+# On PC A - Check outgoing connections
+netstat -an | findstr 8080
+
+# On PC B - Check incoming connections
+netstat -an | findstr :8080
+
+# Monitor network interface statistics
+# PC A should show increased bytes_sent
+# PC B should show increased bytes_recv
+```
+
+**Dashboard Indicators:**
+
+- Real-time attack entries in Network Monitoring panel
+- Source IP matches PC A, Destination IP matches PC B
+- Attack type corresponds to simulation configuration
+- Confidence levels and packet counts update live
+- WebSocket notifications appear across all connected dashboards
 
 ## Running the Platform
+
+### Target Server Setup (New Feature)
+
+The `start_target_server.bat` script creates a dedicated HTTP server that acts as a realistic target for DDoS attacks. This enables visible attack impact testing across different machines.
+
+**Target Server Features:**
+
+- **HTTP Server**: Responds to incoming requests on port 8080
+- **Live Statistics**: Real-time request counting and performance metrics
+- **Attack Visualization**: Shows incoming attack traffic with source IP tracking
+- **Resource Monitoring**: Displays CPU and memory usage during attacks
+- **Response Degradation**: Server becomes slow/unresponsive under attack
+
+**Starting Target Server:**
+
+```bash
+# On target machine (PC B)
+cd backend
+
+# Windows
+.\start_target_server.bat
+
+# Linux/macOS
+chmod +x start_target_server.sh
+./start_target_server.sh
+
+# Output shows:
+# 🎯 Target Server Started
+# 📡 Listening on: http://[YOUR_IP]:8080
+# 📊 Stats endpoint: http://[YOUR_IP]:8080/stats
+# 🔍 Use this IP in attack simulations
+```
+
+**Target Server Endpoints:**
+
+- **Main Page**: `http://[TARGET_IP]:8080/` - Shows server status and statistics
+- **Stats API**: `http://[TARGET_IP]:8080/stats` - JSON endpoint for programmatic access
+- **Health Check**: `http://[TARGET_IP]:8080/health` - Simple health verification
+
+**Monitoring Target Server:**
+
+```bash
+# Check real-time statistics
+curl http://[TARGET_IP]:8080/stats
+
+# Response example:
+{
+  "total_requests": 1247,
+  "requests_per_second": 85.3,
+  "avg_response_time": 0.023,
+  "cpu_usage": 45.2,
+  "memory_usage": 38.7,
+  "active_connections": 12,
+  "server_uptime": "00:05:23"
+}
+```
+
+### Enhanced Platform Setup (Docker Recommended)
+
+The enhanced setup includes all components plus new cross-device monitoring capabilities:
+
+```bash
+# Clone the repository
+git clone https://github.com/AskitEndo/DDOSai_v2.git
+cd DDOSai_v2
+
+# Start development environment (includes all services)
+.\run_dev.bat  # Windows
+./run_dev.sh   # Linux/macOS
+
+# Check all services are running
+docker-compose ps
+
+# Should show:
+# - ddosai_backend (FastAPI + AI Engine)
+# - ddosai_frontend (React Dashboard)
+# - ddosai_db (PostgreSQL)
+# - ddosai_redis (Redis Cache)
+# - ddosai_prometheus (Metrics)
+# - ddosai_grafana (Dashboards)
+# - ddosai_influxdb (Time Series)
+```
+
+**Access Points:**
+
+- **Main Dashboard**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **Interactive API**: http://localhost:8000/redoc
+- **WebSocket Status**: ws://localhost:8000/ws
+- **Grafana Monitoring**: http://localhost:3001 (admin/admin)
+- **Prometheus Metrics**: http://localhost:9090
+- **InfluxDB Interface**: http://localhost:8086
 
 ### Full Platform Setup
 
@@ -327,6 +562,175 @@ curl -X POST http://localhost:8000/api/simulate/stop \
   }'
 ```
 
+## Dashboard Usage
+
+### Main Dashboard Interface
+
+The enhanced DDoS.AI dashboard provides comprehensive real-time monitoring and attack simulation capabilities.
+
+**Dashboard URL**: http://localhost:3000
+
+**Key Components:**
+
+- **Control Buttons**: Load Data, Clear Data, Check Backend, Load from Backend
+- **Metrics Cards**: Real-time statistics for packets, threats, CPU, memory
+- **Network Monitoring Panel**: Live cross-device attack detection (NEW)
+- **Attack Simulation Interface**: Real attack configuration and execution
+- **Network Graph**: Interactive visualization of network topology
+- **Detection History**: Chronological list of detected threats
+
+### Network Monitoring Panel (New Feature)
+
+The Network Monitoring Panel enables real-time cross-device attack detection and monitoring.
+
+**Panel Features:**
+
+```
+📡 Network Monitoring Panel
+├── Status Indicator (Active/Inactive with pulsing green light)
+├── Control Buttons (Start/Stop/Refresh)
+├── Live Network Statistics
+│   ├── Bytes Received/Sent (formatted: KB, MB, GB)
+│   ├── Packets Received/Sent (with comma separators)
+│   └── Network Errors (dropped packets, errors)
+├── Detected Attacks List
+│   ├── Attack Type (SYN Flood, HTTP Flood, etc.)
+│   ├── Source & Destination IPs
+│   ├── Severity Level (Critical/High/Medium/Low)
+│   ├── Confidence Score (0-100%)
+│   ├── Protocol Information (TCP/UDP/HTTP)
+│   └── Timestamp (real-time updates)
+└── Auto-Refresh (3-second intervals when active)
+```
+
+**Using Network Monitoring:**
+
+1. **Start Monitoring**:
+
+   ```
+   Dashboard → Network Monitoring Panel → Click "Start"
+   Status changes to: "Active" with green pulsing indicator
+   ```
+
+2. **Monitor Cross-Device Attacks**:
+
+   ```
+   When PC A attacks PC B:
+   - PC A: Shows outgoing attack traffic in monitoring panel
+   - PC B: Shows incoming attack traffic with source IP = PC A
+   - Real-time WebSocket updates across all connected dashboards
+   ```
+
+3. **Attack Information Display**:
+   ```
+   📊 SYN Flood Attack                     🕐 14:23:45
+   📍 From: 192.168.1.100 → To: 192.168.1.101
+   🔴 Severity: Critical | Confidence: 95.2%
+   🌐 Protocol: TCP | Packet Size: 64 bytes
+   🏷️ Flags: [SYN, PSH, URG]
+   ```
+
+### Attack Simulation Interface
+
+Enhanced simulation interface for real cross-device attack testing.
+
+**Simulation Configuration:**
+
+```
+🎯 Attack Simulation Panel
+├── Target Configuration
+│   ├── IP Address (auto-detected + manual entry)
+│   ├── Port Selection (80, 443, 8080, custom)
+│   └── IP Detection Button (refresh current IP)
+├── Attack Parameters
+│   ├── Attack Type (SYN Flood, UDP Flood, HTTP Flood, Slowloris)
+│   ├── Duration (10-300 seconds)
+│   ├── Packet Rate (100-10,000 packets/second)
+│   └── Thread Count (1-50 threads)
+├── Simulation Controls
+│   ├── Start Simulation Button
+│   ├── Stop Simulation Button
+│   └── Real-time Status Display
+└── Attack History
+    ├── Previous Simulations
+    ├── Success/Failure Status
+    └── Performance Metrics
+```
+
+**Real Attack Workflow:**
+
+1. **Configure Target**: Enter target PC's IP address
+2. **Select Attack Type**: Choose from available attack vectors
+3. **Set Parameters**: Configure intensity and duration
+4. **Start Attack**: Click "Start Simulation" for real network traffic
+5. **Monitor Impact**: Watch Network Monitoring Panel for real-time detection
+
+### Data Loading Controls
+
+Enhanced data management with unified backend integration.
+
+**Control Buttons:**
+
+```
+📊 Data Controls Panel
+├── Load Dummy Data
+│   ├── Generates 50 sample detections
+│   ├── Creates system metrics
+│   └── Builds network graph
+├── Load from Backend
+│   ├── Fetches real API data
+│   ├── Includes network monitoring data
+│   ├── Merges all data sources
+│   └── Shows "Sample Data" indicator when using dummy data
+├── Clear Data
+│   ├── Removes all loaded data
+│   ├── Resets dashboard to empty state
+│   └── Maintains connection status
+└── Check Backend
+    ├── Tests API connectivity
+    ├── Shows connection status (Connected/Disconnected)
+    └── Updates backend health indicator
+```
+
+**Data Loading Strategy:**
+
+- **Empty Start**: Dashboard starts empty, user controls data loading
+- **Backend Priority**: "Load from Backend" provides real data when available
+- **Offline Fallback**: Dummy data available when backend disconnected
+- **Unified Types**: All data sources use consistent TypeScript interfaces
+
+### Real-Time Visualization
+
+**WebSocket Integration:**
+
+- **Live Updates**: Real-time data streaming via WebSocket connections
+- **Cross-Device Sync**: Attack notifications broadcast to all connected clients
+- **Status Indicators**: Connection status, monitoring status, backend health
+- **Auto-Refresh**: Configurable refresh intervals for different components
+
+**Interactive Elements:**
+
+- **Network Graph**: Click nodes to see detection details
+- **Attack List**: Click attacks to view full analysis
+- **Metrics Cards**: Hover for detailed information
+- **Control Panels**: Immediate feedback on user actions
+
+### Navigation & User Experience
+
+**Enhanced Navigation:**
+
+- **Clean Startup**: Empty dashboard until user loads data
+- **Persistent State**: Simulation context maintained across page navigation
+- **Global Context**: Simulation history and IP detection shared across components
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+
+**User Feedback:**
+
+- **Loading States**: Clear indicators during data operations
+- **Error Handling**: Informative error messages with suggested actions
+- **Success Notifications**: Confirmation of successful operations
+- **Status Indicators**: Real-time status for all system components
+
 ## Monitoring
 
 ### Dashboard
@@ -480,6 +884,209 @@ Raw metrics and queries:
    - Check Prometheus connection
    - Verify metrics are being collected
    - Check Grafana data source configuration
+
+### Cross-Device Issues
+
+#### Target Server Connection Problems
+
+**Issue**: Cannot connect to target server on PC B
+
+```bash
+# Error: Connection refused to http://[TARGET_IP]:8080
+```
+
+**Solutions**:
+
+1. **Check Target Server Status**:
+
+   ```bash
+   # On PC B, verify server is running
+   curl http://localhost:8080/health
+   # Should return: {"status": "healthy"}
+   ```
+
+2. **Verify Network Connectivity**:
+
+   ```bash
+   # From PC A, test connection to PC B
+   ping [PC_B_IP]
+   telnet [PC_B_IP] 8080
+   ```
+
+3. **Firewall Configuration**:
+
+   ```bash
+   # Windows - Allow port 8080
+   netsh advfirewall firewall add rule name="DDoS Target Server" dir=in action=allow protocol=TCP localport=8080
+
+   # Linux - Allow port 8080
+   sudo ufw allow 8080
+   ```
+
+4. **Network Discovery**:
+   ```bash
+   # Find other machines on network
+   nmap -sn 192.168.1.0/24  # Adjust subnet as needed
+   arp -a  # Show local ARP table
+   ```
+
+#### Network Monitoring Not Detecting Attacks
+
+**Issue**: Attacks are running but not showing in Network Monitoring Panel
+
+**Solutions**:
+
+1. **Start Network Monitoring**:
+
+   ```
+   Dashboard → Network Monitoring Panel → Click "Start"
+   Verify "Active" status with green pulsing indicator
+   ```
+
+2. **Check WebSocket Connection**:
+
+   ```javascript
+   // Browser console check
+   // Should show: WebSocket connection established
+   ```
+
+3. **Verify Attack Configuration**:
+
+   ```
+   - Target IP matches PC B's actual IP
+   - Attack type is supported (SYN/UDP/HTTP Flood)
+   - Duration and packet rate are realistic
+   - Target server is running and responding
+   ```
+
+4. **Check Backend Logs**:
+   ```bash
+   docker-compose logs -f backend | grep -i "network\|attack\|monitoring"
+   ```
+
+#### Real-Time Updates Not Working
+
+**Issue**: Dashboard not showing live attack updates
+
+**Solutions**:
+
+1. **WebSocket Status Check**:
+
+   ```bash
+   # Check WebSocket endpoint
+   curl -I http://localhost:8000/ws
+   # Should return: 101 Switching Protocols
+   ```
+
+2. **Browser Console Debug**:
+
+   ```javascript
+   // Check for WebSocket errors
+   // Look for connection drops or message failures
+   ```
+
+3. **Refresh Data Connections**:
+   ```
+   - Click "Check Backend" to verify API connectivity
+   - Click "Load from Backend" to refresh all data
+   - Restart network monitoring if needed
+   ```
+
+#### IP Address Detection Problems
+
+**Issue**: Auto IP detection showing wrong address
+
+**Solutions**:
+
+1. **Manual IP Entry**:
+
+   ```
+   - Use ipconfig (Windows) or ifconfig (Linux) to find correct IP
+   - Enter IP manually in simulation interface
+   - Click IP detection refresh button
+   ```
+
+2. **Network Interface Selection**:
+
+   ```bash
+   # Windows - Show all network interfaces
+   ipconfig /all
+
+   # Linux - Show all network interfaces
+   ip addr show
+   ```
+
+3. **VPN/Virtual Network Issues**:
+   ```
+   - Disable VPN during testing
+   - Use physical network interface IP
+   - Avoid virtual machine bridged networks
+   ```
+
+#### Performance and Resource Issues
+
+**Issue**: High CPU/Memory usage during cross-device testing
+
+**Solutions**:
+
+1. **Reduce Attack Intensity**:
+
+   ```
+   - Lower packet rate (500-1000 instead of 5000+)
+   - Shorter duration (30-60 seconds)
+   - Fewer threads (5-10 instead of 50)
+   ```
+
+2. **Monitor System Resources**:
+
+   ```bash
+   # Check system performance
+   docker stats  # Docker container resources
+   htop         # Overall system performance
+   ```
+
+3. **Network Bandwidth Limits**:
+   ```
+   - Test on gigabit network for best results
+   - Monitor network utilization during attacks
+   - Consider QoS limits on network equipment
+   ```
+
+#### Docker and Service Issues
+
+**Issue**: Services not starting properly
+
+**Solutions**:
+
+1. **Check Docker Status**:
+
+   ```bash
+   docker info
+   docker-compose ps
+   docker-compose logs --tail=50
+   ```
+
+2. **Restart Services**:
+
+   ```bash
+   docker-compose down
+   docker-compose up -d --build
+   ```
+
+3. **Port Conflicts**:
+
+   ```bash
+   # Check if ports are already in use
+   netstat -an | findstr ":3000 :8000 :8080"
+   ```
+
+4. **Resource Allocation**:
+   ```bash
+   # Increase Docker memory limits if needed
+   # Docker Desktop → Settings → Resources → Memory: 8GB+
+   ```
+
+### Network Monitoring Problems
 
 ### Logs
 

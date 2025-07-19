@@ -129,6 +129,32 @@ export const api = {
       method: "GET",
       url: `/api/simulate/status?simulation_id=${simulationId}`,
     }),
+
+  // Network monitoring for cross-device attacks
+  getNetworkMonitoringData: () =>
+    request<{
+      monitoring_active: boolean;
+      detected_attacks: any[];
+      network_stats: any;
+      total_monitored_packets: number;
+      active_monitoring_duration: string;
+      timestamp: string;
+    }>({
+      method: "GET",
+      url: "/api/network/monitoring",
+    }),
+
+  startNetworkMonitoring: () =>
+    request<{ status: string; message: string; monitoring_active: boolean }>({
+      method: "POST",
+      url: "/api/network/monitoring/start",
+    }),
+
+  stopNetworkMonitoring: () =>
+    request<{ status: string; message: string; monitoring_active: boolean }>({
+      method: "POST",
+      url: "/api/network/monitoring/stop",
+    }),
 };
 
 export default api;
