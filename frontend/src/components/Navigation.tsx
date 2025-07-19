@@ -145,12 +145,10 @@ const Navigation: React.FC = () => {
               </div>
             )}
 
-            {/* Load Sample Data Button (subtle version for online mode) */}
-            {state.isConnected && (
-              <div className="mr-2">
-                <LoadDummyDataButton />
-              </div>
-            )}
+            {/* Load Sample Data Button (always visible) */}
+            <div className="mr-2">
+              <LoadDummyDataButton />
+            </div>
 
             {/* Notifications */}
             <button className="relative p-2 text-gray-300 hover:text-blue-300 hover:bg-gray-700/50 rounded-full transition-colors">

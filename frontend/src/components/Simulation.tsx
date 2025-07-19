@@ -4,7 +4,7 @@ import { Zap, Play, Square, Settings, Target } from "lucide-react";
 import api from "../services/api";
 
 const Simulation: React.FC = () => {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
   const [isRunning, setIsRunning] = useState(false);
   const [simulationConfig, setSimulationConfig] = useState({
     attack_type: "syn_flood",
@@ -17,25 +17,61 @@ const Simulation: React.FC = () => {
 
   const handleStartSimulation = async () => {
     try {
+      // Check if we're in offline mode
+      const isOfflineMode =
+        localStorage.getItem("ddosai_offline_mode") === "true";
+
+      if (isOfflineMode) {
+        // Show an alert that simulation requires a backend connection
+        alert(
+          "Simulation requires a backend connection. Please check your backend connection and try again."
+        );
+        return;
+      }
+
+      // Only proceed if we're online
       setIsRunning(true);
+
+      // Normal API call since we're online
       const response = await api.startSimulation(simulationConfig);
       console.log("Simulation started:", response);
     } catch (error) {
       console.error("Failed to start simulation:", error);
       setIsRunning(false);
+      alert(
+        "Failed to start simulation. Please check your backend connection."
+      );
     }
   };
 
   const handleStopSimulation = async () => {
     try {
       setIsRunning(false);
+
+      // Check if we're in offline mode
+      const isOfflineMode =
+        localStorage.getItem("ddosai_offline_mode") === "true";
+
+      if (isOfflineMode) {
+        // This shouldn't happen since we don't allow starting in offline mode
+        // But just in case, handle it gracefully
+        alert(
+          "Simulation requires a backend connection. Please check your backend connection."
+        );
+        return;
+      }
+
       // In a real implementation, we'd pass the simulation ID
       const response = await api.stopSimulation("current");
       console.log("Simulation stopped:", response);
     } catch (error) {
       console.error("Failed to stop simulation:", error);
+      alert("Failed to stop simulation. Please check your backend connection.");
     }
   };
+
+  // Check if we're in offline mode
+  const isOfflineMode = localStorage.getItem("ddosai_offline_mode") === "true";
 
   return (
     <div className="space-y-6">
@@ -53,6 +89,38 @@ const Simulation: React.FC = () => {
           </span>
         </div>
       </div>
+
+      {/* Offline Mode Warning */}
+      {isOfflineMode && (
+        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 mb-4">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg
+                className="w-5 h-5 text-red-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-400">
+                Backend Connection Required
+              </h3>
+              <div className="mt-2 text-sm text-red-300">
+                <p>
+                  The simulation feature requires an active backend connection.
+                  Please check your backend connection and try again.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Configuration Panel */}
@@ -181,16 +249,26 @@ const Simulation: React.FC = () => {
           <div className="mt-6 flex space-x-4">
             <button
               onClick={handleStartSimulation}
-              disabled={isRunning}
+              disabled={isRunning || isOfflineMode}
               className="flex-1 flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={
+                isOfflineMode
+                  ? "Backend connection required"
+                  : "Start attack simulation"
+              }
             >
               <Play className="w-4 h-4 mr-2" />
               Start Attack
             </button>
             <button
               onClick={handleStopSimulation}
-              disabled={!isRunning}
+              disabled={!isRunning || isOfflineMode}
               className="flex-1 flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={
+                isOfflineMode
+                  ? "Backend connection required"
+                  : "Stop attack simulation"
+              }
             >
               <Square className="w-4 h-4 mr-2" />
               Stop Attack

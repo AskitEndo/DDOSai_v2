@@ -96,39 +96,85 @@ function App() {
     // Initialize the app
     const initializeApp = async () => {
       try {
+        console.log("Initializing app and checking connection status...");
         // Set initial connection status to false until we confirm connection
         dispatch({ type: "SET_CONNECTION_STATUS", payload: false });
 
-        // Try to connect to WebSocket
+        // Add a timeout to ensure we don't get stuck in loading state
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error("Connection timeout"));
+          }, 3000); // 3 second timeout
+        });
+
+        // Try to connect to WebSocket with a timeout
         try {
-          await webSocketService.reconnect();
+          console.log("Attempting to connect to WebSocket...");
+          await Promise.race([webSocketService.reconnect(), timeoutPromise]);
           // If connection successful, clear offline mode flag and set connection status to true
+          console.log("WebSocket connection successful");
           localStorage.removeItem("ddosai_offline_mode");
           setConnectionError(false);
           dispatch({ type: "SET_CONNECTION_STATUS", payload: true });
         } catch (wsError) {
           console.warn(
-            "WebSocket connection failed, continuing in offline mode"
+            "WebSocket connection failed, continuing in offline mode:",
+            wsError
           );
           setConnectionError(true);
           // Store offline status in localStorage to persist across page reloads
           localStorage.setItem("ddosai_offline_mode", "true");
-
           // Do NOT automatically load dummy data - wait for user to click the button
         }
-
-        setIsLoading(false);
       } catch (error) {
         console.error("Error initializing app:", error);
         setConnectionError(true);
+      } finally {
+        // Always set loading to false, regardless of connection status
         setIsLoading(false);
       }
     };
 
-    initializeApp();
+    // Start initialization with a safety timeout
+    const safetyTimeout = setTimeout(() => {
+      console.warn(
+        "Safety timeout triggered - forcing app to load in offline mode"
+      );
+      setConnectionError(true);
+      setIsLoading(false);
+      localStorage.setItem("ddosai_offline_mode", "true");
+      dispatch({ type: "SET_CONNECTION_STATUS", payload: false });
 
-    // Cleanup WebSocket on unmount
+      // Show a message to the user
+      console.log("Showing offline mode message to user");
+    }, 5000); // 5 second safety timeout
+
+    initializeApp().finally(() => {
+      clearTimeout(safetyTimeout);
+    });
+
+    // Set up a periodic check for WebSocket connection
+    const connectionCheckInterval = setInterval(() => {
+      if (!webSocketService.isConnected()) {
+        console.log("WebSocket not connected, attempting to reconnect...");
+        // Don't wait for reconnect to complete
+        webSocketService
+          .reconnect()
+          .then(() => {
+            console.log("WebSocket reconnection successful");
+            setConnectionError(false);
+            dispatch({ type: "SET_CONNECTION_STATUS", payload: true });
+            localStorage.removeItem("ddosai_offline_mode");
+          })
+          .catch((error) => {
+            console.warn("WebSocket reconnection failed:", error);
+          });
+      }
+    }, 30000); // Check every 30 seconds
+
+    // Cleanup WebSocket and interval on unmount
     return () => {
+      clearInterval(connectionCheckInterval);
       try {
         webSocketService.disconnect();
       } catch (error) {
@@ -172,7 +218,8 @@ function App() {
                   <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
                   <p className="text-red-300 text-sm">
                     Connection to backend services failed. Running in offline
-                    mode.
+                    mode. Some features like simulation require a backend
+                    connection.
                   </p>
                 </div>
                 <div className="flex items-center">
@@ -180,16 +227,122 @@ function App() {
                   <CheckBackendButton
                     onCheck={async () => {
                       try {
-                        await webSocketService.reconnect();
-                        setConnectionError(false);
-                        dispatch({
-                          type: "SET_CONNECTION_STATUS",
-                          payload: true,
-                        });
-                        localStorage.removeItem("ddosai_offline_mode");
+                        console.log("Manually checking backend connection...");
+
+                        // Try multiple endpoints to check if the backend is available
+                        const endpoints = [
+                          "http://localhost:8000/health",
+                          "http://127.0.0.1:8000/health",
+                        ];
+
+                        let backendAvailable = false;
+
+                        for (const endpoint of endpoints) {
+                          try {
+                            console.log(`Trying endpoint: ${endpoint}`);
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(
+                              () => controller.abort(),
+                              1000
+                            );
+
+                            const response = await fetch(endpoint, {
+                              method: "GET",
+                              headers: { "Content-Type": "application/json" },
+                              signal: controller.signal,
+                            });
+
+                            clearTimeout(timeoutId);
+
+                            if (response.ok) {
+                              console.log(
+                                `Backend health check successful at ${endpoint}!`
+                              );
+                              backendAvailable = true;
+                              break;
+                            }
+                          } catch (fetchError) {
+                            console.warn(
+                              `Health check failed for ${endpoint}:`,
+                              fetchError
+                            );
+                          }
+                        }
+
+                        if (!backendAvailable) {
+                          console.warn(
+                            "All health checks failed, trying WebSocket directly"
+                          );
+                        }
+
+                        // Try to connect via WebSocket using the force connect method
+                        const connected = await webSocketService.forceConnect();
+
+                        if (connected) {
+                          console.log("Backend connection successful!");
+                          setConnectionError(false);
+                          dispatch({
+                            type: "SET_CONNECTION_STATUS",
+                            payload: true,
+                          });
+                          localStorage.removeItem("ddosai_offline_mode");
+
+                          // Force a reload of the page to ensure everything is properly connected
+                          window.location.reload();
+                        } else {
+                          throw new Error("Failed to connect to backend");
+                        }
                         return true;
                       } catch (error) {
                         console.error("Failed to reconnect:", error);
+
+                        // Try one more time with a direct WebSocket connection
+                        try {
+                          console.log("Trying direct WebSocket connection...");
+                          const ws = new WebSocket(
+                            "ws://localhost:8000/ws/live-feed"
+                          );
+
+                          // Set a timeout to close the socket if it doesn't connect
+                          const timeoutId = setTimeout(() => {
+                            if (ws.readyState !== WebSocket.OPEN) {
+                              ws.close();
+                              alert(
+                                "Failed to connect to backend. Please make sure the backend is running on http://localhost:8000"
+                              );
+                            }
+                          }, 2000);
+
+                          ws.onopen = () => {
+                            clearTimeout(timeoutId);
+                            console.log(
+                              "Direct WebSocket connection successful!"
+                            );
+                            setConnectionError(false);
+                            dispatch({
+                              type: "SET_CONNECTION_STATUS",
+                              payload: true,
+                            });
+                            localStorage.removeItem("ddosai_offline_mode");
+                            window.location.reload();
+                          };
+
+                          ws.onerror = () => {
+                            clearTimeout(timeoutId);
+                            alert(
+                              "Failed to connect to backend. Please make sure the backend is running on http://localhost:8000"
+                            );
+                          };
+                        } catch (wsError) {
+                          console.error(
+                            "Direct WebSocket connection failed:",
+                            wsError
+                          );
+                          alert(
+                            "Failed to connect to backend. Please make sure the backend is running on http://localhost:8000"
+                          );
+                        }
+
                         return false;
                       }
                     }}

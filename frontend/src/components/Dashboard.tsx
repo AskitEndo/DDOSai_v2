@@ -28,10 +28,21 @@ import MetricsPanel from "./MetricsPanel";
 import XAIPanel from "./XAIPanel";
 import DetectionDetails from "./DetectionDetails";
 
-// Component to load dummy data
-const LoadSampleDataButton = () => {
-  const { dispatch } = useAppContext();
+// Component to load and unload dummy data
+const SampleDataButtons = () => {
+  const { state, dispatch } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
+  const [hasSampleData, setHasSampleData] = useState(false);
+
+  // Check if we have sample data loaded
+  useEffect(() => {
+    // If we have detections and metrics, assume we have sample data
+    setHasSampleData(
+      Array.isArray(state.detections) &&
+        state.detections.length > 0 &&
+        state.metrics !== null
+    );
+  }, [state.detections, state.metrics]);
 
   const loadDummyData = () => {
     setIsLoading(true);
@@ -47,21 +58,52 @@ const LoadSampleDataButton = () => {
     dispatch({ type: "SET_NETWORK_GRAPH", payload: sampleNetworkGraph });
     dispatch({ type: "SET_CONNECTION_STATUS", payload: true });
 
+    // Store a flag in localStorage to indicate we're using sample data
+    localStorage.setItem("ddosai_using_sample_data", "true");
+
     // Short delay just for the button loading state
     setTimeout(() => {
       setIsLoading(false);
+      setHasSampleData(true);
+    }, 300);
+  };
+
+  const unloadDummyData = () => {
+    setIsLoading(true);
+
+    // Clear all data
+    dispatch({ type: "CLEAR_DATA" });
+
+    // Remove the sample data flag
+    localStorage.removeItem("ddosai_using_sample_data");
+
+    // Short delay just for the button loading state
+    setTimeout(() => {
+      setIsLoading(false);
+      setHasSampleData(false);
     }, 300);
   };
 
   return (
-    <button
-      onClick={loadDummyData}
-      disabled={isLoading}
-      className="px-4 py-2 bg-blue-900/30 text-blue-300 border border-blue-700/30 rounded-md hover:bg-blue-800/50 transition-colors"
-    >
-      <Database className="w-4 h-4 mr-2 inline" />
-      {isLoading ? "Loading..." : "Load Sample Data"}
-    </button>
+    <div className="flex space-x-2">
+      <button
+        onClick={loadDummyData}
+        disabled={isLoading || hasSampleData}
+        className="px-4 py-2 bg-blue-900/30 text-blue-300 border border-blue-700/30 rounded-md hover:bg-blue-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Database className="w-4 h-4 mr-2 inline" />
+        {isLoading ? "Loading..." : "Load Sample Data"}
+      </button>
+
+      <button
+        onClick={unloadDummyData}
+        disabled={isLoading || !hasSampleData}
+        className="px-4 py-2 bg-red-900/30 text-red-300 border border-red-700/30 rounded-md hover:bg-red-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <Database className="w-4 h-4 mr-2 inline" />
+        {isLoading ? "Unloading..." : "Unload Sample Data"}
+      </button>
+    </div>
   );
 };
 
@@ -71,6 +113,26 @@ const Dashboard: React.FC = () => {
   // Check if we're in offline mode - note that we consider the app "connected" even in offline mode
   // because we're using dummy data, so we check localStorage directly
   const isOfflineMode = localStorage.getItem("ddosai_offline_mode") === "true";
+
+  // If we don't have any data yet, load sample data automatically
+  useEffect(() => {
+    if (
+      (!state.detections || state.detections.length === 0) &&
+      !state.metrics &&
+      !state.networkGraph
+    ) {
+      console.log("No data available, loading sample data automatically");
+      // Generate random data
+      const sampleDetections = generateRandomDetections(50);
+      const sampleMetrics = generateRandomMetrics();
+      const sampleNetworkGraph = generateRandomNetworkGraph();
+
+      // Update the app state with dummy data immediately to prevent flickering
+      dispatch({ type: "SET_DETECTIONS", payload: sampleDetections });
+      dispatch({ type: "SET_METRICS", payload: sampleMetrics });
+      dispatch({ type: "SET_NETWORK_GRAPH", payload: sampleNetworkGraph });
+    }
+  }, [state.detections, state.metrics, state.networkGraph, dispatch]);
 
   // API hooks for fetching data - disable API calls completely in offline mode
   const {
@@ -185,7 +247,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
         <div className="flex items-center space-x-4">
-          <LoadSampleDataButton />
+          <SampleDataButtons />
           <button
             onClick={() => {
               refreshDetections();

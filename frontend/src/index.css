@@ -199,3 +199,19 @@ body {
     flex-direction: column;
   }
 }
+/* Custom pulse animation for logo */
+@keyframes pulse-custom {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse-custom {
+  animation: pulse-custom 2s infinite;
+}

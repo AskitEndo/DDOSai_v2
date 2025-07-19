@@ -31,6 +31,8 @@ apiClient.interceptors.request.use(
 // Add response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => {
+    // Clear offline mode flag if we get a successful response
+    localStorage.removeItem("ddosai_offline_mode");
     return response;
   },
   (error) => {
@@ -38,6 +40,7 @@ apiClient.interceptors.response.use(
 
     // Check if this is a network error (likely offline mode)
     if (error.code === "ERR_NETWORK") {
+      console.log("Network error detected, setting offline mode");
       // Store offline status in localStorage to persist across page reloads
       localStorage.setItem("ddosai_offline_mode", "true");
     }
