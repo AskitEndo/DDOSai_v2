@@ -1,0 +1,204 @@
+/* Enhanced anti-glitch styles for DDoS.AI */
+
+/* Reduce animation intensity and prevent conflicts */
+.animate-pulse {
+  animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Smooth all transitions to prevent jarring animations */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Prevent layout shifts during loading */
+.loading-container {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stabilize metric values to prevent jumping */
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 4rem;
+  text-align: right;
+}
+
+/* Prevent rapid re-renders of progress bars */
+.progress-bar {
+  transition: width 1s ease-out !important;
+}
+
+/* Reduce spinner speed */
+.loading-spinner {
+  animation: spin 2s linear infinite !important;
+}
+
+/* Prevent rapid state changes in status indicators */
+.status-indicator {
+  transition: all 0.5s ease-in-out !important;
+}
+
+/* Debounce hover effects */
+.dashboard-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-1px) !important;
+}
+
+/* Stable loading states */
+.component-loading {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200% 100%;
+  animation: loading-shimmer 2s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Prevent text shifting during data updates */
+.data-cell {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Smooth connection status changes */
+.connection-status {
+  transition: color 0.8s ease, background-color 0.8s ease !important;
+}
+
+/* Reduce alert animation intensity */
+.alert-pulse {
+  animation: alert-pulse 3s ease-in-out infinite !important;
+}
+
+@keyframes alert-pulse {
+  0%,
+  100% {
+    background-color: rgba(255, 7, 58, 0.1);
+  }
+  50% {
+    background-color: rgba(255, 7, 58, 0.15);
+  }
+}
+
+/* Prevent rapid chart updates */
+.chart-container {
+  transition: all 0.5s ease !important;
+}
+
+/* Stable form inputs */
+input,
+select,
+textarea {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* Prevent button state flashing */
+button {
+  transition: background-color 0.3s ease, color 0.3s ease, opacity 0.3s ease !important;
+}
+
+button:disabled {
+  transition: none !important;
+}
+
+/* Stable table rows */
+.table-row {
+  transition: background-color 0.3s ease !important;
+}
+
+/* Prevent modal flickering */
+.modal-overlay {
+  transition: opacity 0.2s ease !important;
+}
+
+.modal-content {
+  transition: transform 0.2s ease, opacity 0.2s ease !important;
+}
+
+/* Reduce network graph animation */
+.network-node {
+  transition: all 0.5s ease !important;
+}
+
+.network-edge {
+  transition: all 0.5s ease !important;
+}
+
+/* Stabilize tooltips */
+.tooltip {
+  transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Prevent rapid visibility changes */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out !important;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stable grid layouts */
+.grid-item {
+  transition: transform 0.3s ease !important;
+}
+
+/* Prevent badge flickering */
+.badge {
+  transition: background-color 0.5s ease, color 0.5s ease !important;
+}
+
+/* Smooth sidebar transitions */
+.sidebar {
+  transition: transform 0.3s ease !important;
+}
+
+/* Prevent rapid icon changes */
+.icon-container {
+  transition: transform 0.3s ease, color 0.3s ease !important;
+}
+
+/* Performance optimizations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

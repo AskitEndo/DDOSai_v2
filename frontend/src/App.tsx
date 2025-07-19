@@ -4,59 +4,14 @@ import Navigation from "./components/Navigation";
 import ErrorBoundary from "./components/ErrorBoundary";
 import webSocketService from "./services/websocket";
 import { useAppContext } from "./context/AppContext";
-import {
-  generateRandomDetections,
-  generateRandomMetrics,
-  generateRandomNetworkGraph,
-} from "./utils/dummyData";
-import { Database, AlertCircle } from "lucide-react";
+import { DataProvider } from "./context/DataManager";
+import { SimulationProvider } from "./context/SimulationContext";
+import { AlertCircle } from "lucide-react";
 
 // Use dynamic imports to fix TypeScript errors
 const Dashboard = React.lazy(() => import("./components/Dashboard"));
 const Simulation = React.lazy(() => import("./components/Simulation"));
 const Logs = React.lazy(() => import("./components/Logs"));
-
-// Component to load dummy data
-const LoadDummyDataButton = ({ isOfflineMode = false }) => {
-  const { dispatch } = useAppContext();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const loadDummyData = () => {
-    setIsLoading(true);
-
-    // Generate random data
-    const detections = generateRandomDetections(50);
-    const metrics = generateRandomMetrics();
-    const networkGraph = generateRandomNetworkGraph();
-
-    // Update the app state with dummy data immediately to prevent flickering
-    dispatch({ type: "SET_DETECTIONS", payload: detections });
-    dispatch({ type: "SET_METRICS", payload: metrics });
-    dispatch({ type: "SET_NETWORK_GRAPH", payload: networkGraph });
-    dispatch({ type: "SET_CONNECTION_STATUS", payload: true });
-
-    // Short delay just for the button loading state
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 300);
-  };
-
-  // Use different styles based on whether we're in offline mode
-  const buttonClasses = isOfflineMode
-    ? "ml-auto sm:ml-4 px-4 py-1.5 bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 rounded-md flex items-center text-sm transition-colors"
-    : "px-3 py-1 bg-blue-900/30 hover:bg-blue-800/50 text-blue-300/80 rounded-md flex items-center text-xs transition-colors";
-
-  return (
-    <button
-      onClick={loadDummyData}
-      disabled={isLoading}
-      className={buttonClasses}
-    >
-      <Database className={isOfflineMode ? "w-4 h-4 mr-2" : "w-3 h-3 mr-1"} />
-      {isLoading ? "Loading..." : "Load Sample Data"}
-    </button>
-  );
-};
 
 // Component to check backend availability
 const CheckBackendButton = ({
@@ -85,6 +40,16 @@ const CheckBackendButton = ({
 };
 
 function App() {
+  return (
+    <DataProvider>
+      <SimulationProvider>
+        <AppContent />
+      </SimulationProvider>
+    </DataProvider>
+  );
+}
+
+function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
 
@@ -223,7 +188,9 @@ function App() {
                   </p>
                 </div>
                 <div className="flex items-center">
-                  <LoadDummyDataButton isOfflineMode={true} />
+                  <div className="text-yellow-300 text-sm">
+                    Sample data available in Dashboard
+                  </div>
                   <CheckBackendButton
                     onCheck={async () => {
                       try {

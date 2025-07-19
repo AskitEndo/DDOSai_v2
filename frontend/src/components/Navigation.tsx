@@ -13,50 +13,8 @@ import {
   User,
   LogOut,
   HelpCircle,
-  Database,
 } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
-import {
-  generateRandomDetections,
-  generateRandomMetrics,
-  generateRandomNetworkGraph,
-} from "../utils/dummyData";
-
-// Component to load dummy data (subtle version for online mode)
-const LoadDummyDataButton = () => {
-  const { dispatch } = useAppContext();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const loadDummyData = () => {
-    setIsLoading(true);
-
-    // Generate random data
-    const detections = generateRandomDetections(50);
-    const metrics = generateRandomMetrics();
-    const networkGraph = generateRandomNetworkGraph();
-
-    // Update the app state with dummy data
-    dispatch({ type: "SET_DETECTIONS", payload: detections });
-    dispatch({ type: "SET_METRICS", payload: metrics });
-    dispatch({ type: "SET_NETWORK_GRAPH", payload: networkGraph });
-
-    // Short delay just for the button loading state
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 300);
-  };
-
-  return (
-    <button
-      onClick={loadDummyData}
-      disabled={isLoading}
-      className="px-3 py-1 bg-blue-900/30 hover:bg-blue-800/50 text-blue-300/80 rounded-md flex items-center text-xs transition-colors"
-    >
-      <Database className="w-3 h-3 mr-1" />
-      {isLoading ? "Loading..." : "Load Sample Data"}
-    </button>
-  );
-};
 
 const Navigation: React.FC = () => {
   const location = useLocation();
@@ -144,11 +102,6 @@ const Navigation: React.FC = () => {
                 </span>
               </div>
             )}
-
-            {/* Load Sample Data Button (always visible) */}
-            <div className="mr-2">
-              <LoadDummyDataButton />
-            </div>
 
             {/* Notifications */}
             <button className="relative p-2 text-gray-300 hover:text-blue-300 hover:bg-gray-700/50 rounded-full transition-colors">

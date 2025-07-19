@@ -13,11 +13,13 @@ import { formatNumber } from "../utils";
 interface MetricsPanelProps {
   metrics: SystemMetrics | null;
   loading?: boolean;
+  onRefresh?: () => void;
 }
 
 const MetricsPanel: React.FC<MetricsPanelProps> = ({
   metrics,
   loading = false,
+  onRefresh,
 }) => {
   const getProgressColor = (value: number, type: string) => {
     if (type === "latency") {
@@ -33,22 +35,15 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
     }
   };
 
-  // Default values for metrics if they're not available
-  const defaultMetrics = {
-    cpu_usage: 45,
-    memory_usage: 60,
-    active_connections: 250,
-    processing_latency_ms: 15,
-  };
+  // Show empty state when no metrics are available
+  const showEmpty = !metrics && !loading;
 
-  // Use metrics if available, otherwise use default values
-  const cpuUsage = metrics?.cpu_usage ?? defaultMetrics.cpu_usage;
-  const memoryUsage = metrics?.memory_usage ?? defaultMetrics.memory_usage;
-  const activeConnections =
-    metrics?.active_connections ?? defaultMetrics.active_connections;
-  const processingLatency =
-    metrics?.processing_latency_ms ?? defaultMetrics.processing_latency_ms;
-  const maxConnections = 1000; // Assuming a max of 1000 connections for the progress bar
+  // Use real metrics when available, show 0 when loading or no data
+  const cpuUsage = loading ? 0 : metrics?.cpu_usage ?? 0;
+  const memoryUsage = loading ? 0 : metrics?.memory_usage ?? 0;
+  const activeConnections = loading ? 0 : metrics?.active_connections ?? 0;
+  const processingLatency = loading ? 0 : metrics?.processing_latency_ms ?? 0;
+  const maxConnections = 1000;
 
   if (loading) {
     return (
@@ -76,8 +71,19 @@ const MetricsPanel: React.FC<MetricsPanelProps> = ({
           <BarChart2 className="w-5 h-5 mr-2 text-blue-400" />
           System Metrics
         </h2>
-        <div className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full">
-          Real-time
+        <div className="flex items-center space-x-2">
+          <div className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full">
+            Real-time
+          </div>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="p-1.5 rounded-full bg-gray-700/50 hover:bg-gray-700 text-gray-400 hover:text-blue-400 transition-colors"
+              title="Refresh metrics"
+            >
+              <RefreshCw className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
 

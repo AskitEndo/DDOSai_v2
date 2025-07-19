@@ -50,7 +50,10 @@ const SimulationStatusPanel: React.FC<SimulationStatusPanelProps> = ({
           Simulation Status
         </h2>
         <div className="flex items-center justify-center py-8">
-          <LoadingSpinner size="medium" text="Loading status..." />
+          <div className="flex items-center justify-center space-x-2">
+            <LoadingSpinner size="md" />
+            <span className="text-gray-600">Loading status...</span>
+          </div>
         </div>
       </div>
     );

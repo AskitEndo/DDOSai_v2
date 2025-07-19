@@ -172,49 +172,52 @@ class WebSocketService {
           this.socket = null;
         }
 
-        // Try to connect WebSocket
-        this.connect();
+        // Create a new WebSocket connection manually instead of using connect()
+        const urls = [
+          import.meta.env.VITE_WS_URL,
+          "ws://localhost:8000/ws/live-feed",
+          "ws://127.0.0.1:8000/ws/live-feed",
+          "ws://0.0.0.0:8000/ws/live-feed",
+        ].filter(Boolean);
 
-        if (this.socket) {
-          const onConnect = () => {
-            if (this.socket) {
-              this.socket.removeEventListener("open", onConnect);
-              console.log("WebSocket reconnected successfully");
-              resolve();
+        const wsUrl = urls[0];
+        const ws = new WebSocket(wsUrl);
+
+        // Set timeout to avoid hanging forever
+        const timeout = setTimeout(() => {
+          ws.close();
+          console.error("WebSocket connection timeout");
+          reject(new Error("Connection timeout"));
+        }, 3000);
+
+        ws.onopen = () => {
+          clearTimeout(timeout);
+          this.socket = ws;
+          console.log("WebSocket reconnected successfully");
+          resolve();
+        };
+
+        ws.onerror = (error) => {
+          clearTimeout(timeout);
+          console.error("WebSocket reconnection error:", error);
+          reject(error);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            if (message.type) {
+              this.emit(message.type, message.data);
             }
-          };
+          } catch (e) {
+            console.error("Error parsing WebSocket message:", e);
+          }
+        };
 
-          const onError = (error: any) => {
-            if (this.socket) {
-              this.socket.removeEventListener("error", onError);
-              console.error("WebSocket reconnection error:", error);
-              reject(error);
-            }
-          };
-
-          // Set timeout to avoid hanging forever
-          const timeout = setTimeout(() => {
-            if (this.socket) {
-              this.socket.removeEventListener("open", onConnect);
-              this.socket.removeEventListener("error", onError);
-              console.error("WebSocket connection timeout");
-              reject(new Error("Connection timeout"));
-            }
-          }, 3000); // 3 second timeout
-
-          this.socket.addEventListener("open", () => {
-            clearTimeout(timeout);
-            onConnect();
-          });
-
-          this.socket.addEventListener("error", (error) => {
-            clearTimeout(timeout);
-            onError(error);
-          });
-        } else {
-          console.error("Failed to initialize socket");
-          reject(new Error("Failed to initialize socket"));
-        }
+        ws.onclose = (event) => {
+          console.log("WebSocket disconnected with code:", event.code);
+          this.socket = null;
+        };
       } catch (error) {
         console.error("WebSocket reconnection error:", error);
         reject(error);

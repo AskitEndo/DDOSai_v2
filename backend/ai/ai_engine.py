@@ -355,7 +355,12 @@ class AIEngine:
                 "packet_count": 0,
                 "avg_processing_time": 0.0,
                 "max_processing_time": 0.0,
-                "min_processing_time": 0.0
+                "min_processing_time": 0.0,
+                "processing_times_p95": 0.0,
+                "processing_times_p99": 0.0,
+                "malicious_count": 0,
+                "benign_count": 0,
+                "threat_level": 0
             }
         
         metrics = {

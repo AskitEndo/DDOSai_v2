@@ -1,365 +1,507 @@
-import React, { useState } from "react";
-import { useAppContext } from "../context/AppContext";
-import { Zap, Play, Square, Settings, Target } from "lucide-react";
-import api from "../services/api";
+import React, { useState, useEffect } from "react";
+import { useSimulation } from "../context/SimulationContext";
+import {
+  Play,
+  Square,
+  Wifi,
+  WifiOff,
+  AlertCircle,
+  Clock,
+  Activity,
+  Target,
+  Users,
+  Zap,
+  Shield,
+  Globe,
+  RefreshCw,
+} from "lucide-react";
+
+interface AttackType {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ReactNode;
+  severity: "low" | "medium" | "high" | "critical";
+}
+
+const attackTypes: AttackType[] = [
+  {
+    id: "syn_flood",
+    name: "SYN Flood",
+    description: "TCP SYN flood attack overwhelming the target",
+    icon: <Zap className="w-4 h-4" />,
+    severity: "high",
+  },
+  {
+    id: "udp_flood",
+    name: "UDP Flood",
+    description: "UDP packet flood targeting random ports",
+    icon: <Activity className="w-4 h-4" />,
+    severity: "medium",
+  },
+  {
+    id: "http_flood",
+    name: "HTTP Flood",
+    description: "HTTP GET/POST request flood",
+    icon: <Globe className="w-4 h-4" />,
+    severity: "high",
+  },
+  {
+    id: "ping_flood",
+    name: "Ping Flood",
+    description: "ICMP ping flood attack",
+    icon: <Target className="w-4 h-4" />,
+    severity: "low",
+  },
+  {
+    id: "slowloris",
+    name: "Slowloris",
+    description: "Slow HTTP connection attack",
+    icon: <Clock className="w-4 h-4" />,
+    severity: "critical",
+  },
+];
+
+const getSeverityColor = (severity: string) => {
+  switch (severity) {
+    case "low":
+      return "text-green-400 bg-green-900/20 border-green-700";
+    case "medium":
+      return "text-yellow-400 bg-yellow-900/20 border-yellow-700";
+    case "high":
+      return "text-orange-400 bg-orange-900/20 border-orange-700";
+    case "critical":
+      return "text-red-400 bg-red-900/20 border-red-700";
+    default:
+      return "text-gray-400 bg-gray-900/20 border-gray-700";
+  }
+};
 
 const Simulation: React.FC = () => {
-  const { state, dispatch } = useAppContext();
-  const [isRunning, setIsRunning] = useState(false);
+  const { state, startSimulation, stopSimulation, getUserIP } = useSimulation();
+
   const [simulationConfig, setSimulationConfig] = useState({
+    target_ip: "",
     attack_type: "syn_flood",
-    target_ip: "192.168.1.100",
     target_port: 80,
-    duration: 60,
-    packet_rate: 100,
+    duration: 30,
+    packet_rate: 1000,
     packet_size: 64,
+    num_threads: 10,
   });
 
-  const handleStartSimulation = async () => {
-    try {
-      // Check if we're in offline mode
-      const isOfflineMode =
-        localStorage.getItem("ddosai_offline_mode") === "true";
+  const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<
+    "checking" | "connected" | "disconnected"
+  >("checking");
+  const [isDetectingIP, setIsDetectingIP] = useState(false);
 
-      if (isOfflineMode) {
-        // Show an alert that simulation requires a backend connection
-        alert(
-          "Simulation requires a backend connection. Please check your backend connection and try again."
-        );
-        return;
+  // Auto-detect user IP on component mount
+  useEffect(() => {
+    const detectIP = async () => {
+      setIsDetectingIP(true);
+      try {
+        const ip = await getUserIP();
+        if (ip && !simulationConfig.target_ip) {
+          setSimulationConfig((prev) => ({ ...prev, target_ip: ip }));
+        }
+      } catch (error) {
+        console.error("Failed to detect IP:", error);
+      } finally {
+        setIsDetectingIP(false);
       }
+    };
 
-      // Only proceed if we're online
-      setIsRunning(true);
+    detectIP();
+  }, [getUserIP, simulationConfig.target_ip]);
 
-      // Normal API call since we're online
-      const response = await api.startSimulation(simulationConfig);
-      console.log("Simulation started:", response);
+  // Check connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      try {
+        // Import API service to check connection
+        const { api } = await import("../services/api");
+        const response = await api.health();
+        setConnectionStatus(
+          response.status === 200 ? "connected" : "disconnected"
+        );
+      } catch (error) {
+        setConnectionStatus("disconnected");
+      }
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleConfigChange = (field: string, value: string | number) => {
+    setSimulationConfig((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleStartSimulation = async () => {
+    setIsStarting(true);
+    try {
+      await startSimulation(simulationConfig);
     } catch (error) {
       console.error("Failed to start simulation:", error);
-      setIsRunning(false);
-      alert(
-        "Failed to start simulation. Please check your backend connection."
-      );
+    } finally {
+      setIsStarting(false);
     }
   };
 
   const handleStopSimulation = async () => {
+    setIsStopping(true);
     try {
-      setIsRunning(false);
-
-      // Check if we're in offline mode
-      const isOfflineMode =
-        localStorage.getItem("ddosai_offline_mode") === "true";
-
-      if (isOfflineMode) {
-        // This shouldn't happen since we don't allow starting in offline mode
-        // But just in case, handle it gracefully
-        alert(
-          "Simulation requires a backend connection. Please check your backend connection."
-        );
-        return;
-      }
-
-      // In a real implementation, we'd pass the simulation ID
-      const response = await api.stopSimulation("current");
-      console.log("Simulation stopped:", response);
+      await stopSimulation();
     } catch (error) {
       console.error("Failed to stop simulation:", error);
-      alert("Failed to stop simulation. Please check your backend connection.");
+    } finally {
+      setIsStopping(false);
     }
   };
 
-  // Check if we're in offline mode
-  const isOfflineMode = localStorage.getItem("ddosai_offline_mode") === "true";
+  const selectedAttackType = attackTypes.find(
+    (attack) => attack.id === simulationConfig.attack_type
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Attack Simulation</h1>
-        <div className="flex items-center space-x-2 text-sm">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              isRunning ? "bg-red-500 animate-pulse" : "bg-gray-500"
-            }`}
-          />
-          <span className="text-gray-400">
-            Status: {isRunning ? "Running" : "Idle"}
-          </span>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">DDoS Simulation</h1>
+            <p className="text-gray-400 mt-1">
+              Configure and run controlled DDoS attack simulations
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            {connectionStatus === "connected" ? (
+              <div className="flex items-center text-green-400">
+                <Wifi className="w-4 h-4 mr-1" />
+                <span className="text-sm">Connected</span>
+              </div>
+            ) : connectionStatus === "disconnected" ? (
+              <div className="flex items-center text-red-400">
+                <WifiOff className="w-4 h-4 mr-1" />
+                <span className="text-sm">Disconnected</span>
+              </div>
+            ) : (
+              <div className="flex items-center text-yellow-400">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                <span className="text-sm">Checking...</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Offline Mode Warning */}
-      {isOfflineMode && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 mb-4">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <svg
-                className="w-5 h-5 text-red-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-400">
-                Backend Connection Required
-              </h3>
-              <div className="mt-2 text-sm text-red-300">
-                <p>
-                  The simulation feature requires an active backend connection.
-                  Please check your backend connection and try again.
+      {/* Current Simulation Status */}
+      {state.currentSimulation && (
+        <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+              <div>
+                <h3 className="text-blue-300 font-medium">
+                  Simulation Running
+                </h3>
+                <p className="text-blue-400 text-sm">
+                  {selectedAttackType?.name} →{" "}
+                  {state.currentSimulation.target_ip}
                 </p>
               </div>
+            </div>
+            <div className="text-blue-300 text-sm">
+              Duration: {state.currentSimulation.duration}s
             </div>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Configuration Panel */}
+        {/* Simulation Configuration */}
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
-            <Settings className="w-5 h-5 mr-2" />
-            Simulation Configuration
-          </h2>
+          <h2 className="text-xl font-bold text-white mb-4">Configuration</h2>
 
           <div className="space-y-4">
+            {/* Target IP */}
             <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target IP Address
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={simulationConfig.target_ip}
+                  onChange={(e) =>
+                    handleConfigChange("target_ip", e.target.value)
+                  }
+                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="192.168.1.1"
+                  disabled={!!state.currentSimulation}
+                />
+                <button
+                  onClick={async () => {
+                    setIsDetectingIP(true);
+                    try {
+                      const ip = await getUserIP();
+                      setSimulationConfig((prev) => ({
+                        ...prev,
+                        target_ip: ip,
+                      }));
+                    } catch (error) {
+                      console.error("Failed to detect IP:", error);
+                    } finally {
+                      setIsDetectingIP(false);
+                    }
+                  }}
+                  disabled={!!state.currentSimulation || isDetectingIP}
+                  className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors text-sm"
+                  title="Detect your public IP address"
+                >
+                  {isDetectingIP ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Globe className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                💡 Your IP will be auto-detected, or click the globe button to
+                refresh
+                {state.userIP && (
+                  <span className="block text-purple-400 mt-1">
+                    🔍 Detected IP: {state.userIP}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {/* Target Port */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Target Port
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="65535"
+                value={simulationConfig.target_port}
+                onChange={(e) =>
+                  handleConfigChange("target_port", parseInt(e.target.value))
+                }
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="80"
+                disabled={!!state.currentSimulation}
+              />
+            </div>
+
+            {/* Attack Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
                 Attack Type
               </label>
               <select
                 value={simulationConfig.attack_type}
                 onChange={(e) =>
-                  setSimulationConfig({
-                    ...simulationConfig,
-                    attack_type: e.target.value,
-                  })
+                  handleConfigChange("attack_type", e.target.value)
                 }
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
-                disabled={isRunning}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!!state.currentSimulation}
               >
-                <option value="syn_flood">SYN Flood</option>
-                <option value="udp_flood">UDP Flood</option>
-                <option value="http_flood">HTTP Flood</option>
-                <option value="slowloris">Slowloris</option>
+                {attackTypes.map((attack) => (
+                  <option key={attack.id} value={attack.id}>
+                    {attack.name}
+                  </option>
+                ))}
               </select>
-            </div>
 
-            <div>
-              <label className="block text-gray-300 text-sm font-medium mb-2">
-                Target IP
-              </label>
-              <input
-                type="text"
-                value={simulationConfig.target_ip}
-                onChange={(e) =>
-                  setSimulationConfig({
-                    ...simulationConfig,
-                    target_ip: e.target.value,
-                  })
-                }
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
-                disabled={isRunning}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">
-                  Target Port
-                </label>
-                <input
-                  type="number"
-                  value={simulationConfig.target_port}
-                  onChange={(e) =>
-                    setSimulationConfig({
-                      ...simulationConfig,
-                      target_port: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
-                  disabled={isRunning}
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">
-                  Duration (seconds)
-                </label>
-                <input
-                  type="number"
-                  value={simulationConfig.duration}
-                  onChange={(e) =>
-                    setSimulationConfig({
-                      ...simulationConfig,
-                      duration: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
-                  disabled={isRunning}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">
-                  Packet Rate (pps)
-                </label>
-                <input
-                  type="number"
-                  value={simulationConfig.packet_rate}
-                  onChange={(e) =>
-                    setSimulationConfig({
-                      ...simulationConfig,
-                      packet_rate: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
-                  disabled={isRunning}
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">
-                  Packet Size (bytes)
-                </label>
-                <input
-                  type="number"
-                  value={simulationConfig.packet_size}
-                  onChange={(e) =>
-                    setSimulationConfig({
-                      ...simulationConfig,
-                      packet_size: parseInt(e.target.value),
-                    })
-                  }
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white"
-                  disabled={isRunning}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 flex space-x-4">
-            <button
-              onClick={handleStartSimulation}
-              disabled={isRunning || isOfflineMode}
-              className="flex-1 flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={
-                isOfflineMode
-                  ? "Backend connection required"
-                  : "Start attack simulation"
-              }
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Start Attack
-            </button>
-            <button
-              onClick={handleStopSimulation}
-              disabled={!isRunning || isOfflineMode}
-              className="flex-1 flex items-center justify-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={
-                isOfflineMode
-                  ? "Backend connection required"
-                  : "Stop attack simulation"
-              }
-            >
-              <Square className="w-4 h-4 mr-2" />
-              Stop Attack
-            </button>
-          </div>
-        </div>
-
-        {/* Status Panel */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
-            <Target className="w-5 h-5 mr-2" />
-            Simulation Status
-          </h2>
-
-          {state.simulation ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-700/50 rounded p-3">
-                  <p className="text-gray-400 text-sm">Status</p>
-                  <p className="text-white font-medium">
-                    {state.simulation.status}
-                  </p>
-                </div>
-                <div className="bg-gray-700/50 rounded p-3">
-                  <p className="text-gray-400 text-sm">Attack Type</p>
-                  <p className="text-white font-medium">
-                    {state.simulation.attack_type || "N/A"}
-                  </p>
-                </div>
-                <div className="bg-gray-700/50 rounded p-3">
-                  <p className="text-gray-400 text-sm">Packets Sent</p>
-                  <p className="text-white font-medium">
-                    {state.simulation.packets_sent}
-                  </p>
-                </div>
-                <div className="bg-gray-700/50 rounded p-3">
-                  <p className="text-gray-400 text-sm">Bytes Sent</p>
-                  <p className="text-white font-medium">
-                    {state.simulation.bytes_sent}
-                  </p>
-                </div>
-              </div>
-
-              {state.simulation.current_packet_rate && (
-                <div className="bg-gray-700/50 rounded p-3">
-                  <p className="text-gray-400 text-sm">Current Packet Rate</p>
-                  <p className="text-white font-medium">
-                    {state.simulation.current_packet_rate} pps
+              {/* Attack Type Info */}
+              {selectedAttackType && (
+                <div
+                  className={`mt-2 p-3 rounded-md border ${getSeverityColor(
+                    selectedAttackType.severity
+                  )}`}
+                >
+                  <div className="flex items-center space-x-2">
+                    {selectedAttackType.icon}
+                    <span className="font-medium">
+                      {selectedAttackType.name}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded uppercase font-bold">
+                      {selectedAttackType.severity}
+                    </span>
+                  </div>
+                  <p className="text-sm mt-1 opacity-80">
+                    {selectedAttackType.description}
                   </p>
                 </div>
               )}
             </div>
-          ) : (
-            <div className="text-center text-gray-400 py-8">
-              <Zap className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>No active simulation</p>
+
+            {/* Duration */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Duration (seconds)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="300"
+                value={simulationConfig.duration}
+                onChange={(e) =>
+                  handleConfigChange("duration", parseInt(e.target.value))
+                }
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!!state.currentSimulation}
+              />
+            </div>
+
+            {/* Packet Rate */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Packet Rate (packets/sec): {simulationConfig.packet_rate}
+              </label>
+              <input
+                type="range"
+                min="100"
+                max="10000"
+                value={simulationConfig.packet_rate}
+                onChange={(e) =>
+                  handleConfigChange("packet_rate", parseInt(e.target.value))
+                }
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                disabled={!!state.currentSimulation}
+              />
+            </div>
+
+            {/* Threads */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Threads
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={simulationConfig.num_threads}
+                onChange={(e) =>
+                  handleConfigChange("num_threads", parseInt(e.target.value))
+                }
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={!!state.currentSimulation}
+              />
+            </div>
+          </div>
+
+          {/* Control Buttons */}
+          <div className="mt-6 flex space-x-3">
+            {!state.currentSimulation ? (
+              <button
+                onClick={handleStartSimulation}
+                disabled={
+                  isStarting ||
+                  !simulationConfig.target_ip ||
+                  connectionStatus !== "connected"
+                }
+                className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+              >
+                {isStarting ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                ) : (
+                  <Play className="w-4 h-4 mr-2" />
+                )}
+                {isStarting ? "Starting..." : "Start Simulation"}
+              </button>
+            ) : (
+              <button
+                onClick={handleStopSimulation}
+                disabled={isStopping}
+                className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+              >
+                {isStopping ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                ) : (
+                  <Square className="w-4 h-4 mr-2" />
+                )}
+                {isStopping ? "Stopping..." : "Stop Simulation"}
+              </button>
+            )}
+          </div>
+
+          {/* Warning */}
+          <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-md">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+              <div className="text-yellow-300 text-sm">
+                <p className="font-medium">⚠️ Educational Use Only</p>
+                <p className="mt-1">
+                  Only use this simulation against systems you own or have
+                  explicit permission to test. Unauthorized DDoS attacks are
+                  illegal.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Simulation History */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-white mb-4">
+            Simulation History
+          </h2>
+
+          {state.history.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <Shield className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No simulations run yet</p>
               <p className="text-sm mt-1">
-                Configure and start an attack simulation
+                Start your first simulation to see results here
               </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {state.history.slice(0, 10).map((sim, index) => {
+                const attackType = attackTypes.find(
+                  (a) => a.id === sim.attack_type
+                );
+                return (
+                  <div
+                    key={index}
+                    className="bg-gray-700/50 border border-gray-600 rounded-md p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {attackType?.icon}
+                        <div>
+                          <p className="text-white font-medium">
+                            {attackType?.name || sim.attack_type}
+                          </p>
+                          <p className="text-gray-400 text-sm">
+                            Target: {sim.target_ip}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-gray-300 text-sm">{sim.duration}s</p>
+                        <p className="text-gray-400 text-xs">
+                          {sim.start_time
+                            ? new Date(sim.start_time).toLocaleTimeString()
+                            : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Warning Notice */}
-      <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <svg
-              className="w-5 h-5 text-yellow-400"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-yellow-400">Warning</h3>
-            <div className="mt-2 text-sm text-yellow-300">
-              <p>
-                This simulation tool is for educational and testing purposes
-                only. Only use against systems you own or have explicit
-                permission to test. Unauthorized use may be illegal and could
-                result in serious consequences.
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

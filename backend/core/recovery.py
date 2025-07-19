@@ -55,19 +55,48 @@ class GracefulShutdown:
         
         logger.info("Graceful shutdown completed")
         
-        # Exit with appropriate code
-        if sig == signal.SIGTERM:
+        # Force immediate exit - no delay needed
+        logger.info("Forcing immediate application exit")
+        import os
+        import sys
+        
+        # Try multiple exit methods
+        try:
+            # Method 1: os._exit (most forceful)
+            os._exit(0)
+        except SystemExit:
+            # Method 2: sys.exit as fallback
             sys.exit(0)
-        elif sig == signal.SIGINT:
-            sys.exit(130)  # 128 + SIGINT value (2)
-        else:
-            sys.exit(1)
+        except:
+            # Method 3: Kill own process as last resort
+            import os
+            import signal
+            os.kill(os.getpid(), signal.SIGTERM)
     
     @staticmethod
     def setup_signal_handlers() -> None:
         """Set up signal handlers for graceful shutdown"""
-        signal.signal(signal.SIGTERM, GracefulShutdown.handle_shutdown)
-        signal.signal(signal.SIGINT, GracefulShutdown.handle_shutdown)
+        def async_signal_handler(sig, frame):
+            """Async-friendly signal handler"""
+            # Prevent duplicate signals within short time window
+            import time
+            current_time = time.time()
+            last_signal_time = getattr(async_signal_handler, 'last_signal_time', 0)
+            
+            if current_time - last_signal_time < 1.0:  # Ignore signals within 1 second
+                logger.debug(f"Ignoring duplicate signal {sig} (too recent)")
+                return
+                
+            async_signal_handler.last_signal_time = current_time
+            logger.info(f"Signal {sig} received, initiating graceful shutdown")
+            GracefulShutdown.handle_shutdown(sig, frame)
+        
+        signal.signal(signal.SIGTERM, async_signal_handler)
+        signal.signal(signal.SIGINT, async_signal_handler)
+        
+        # On Windows, also handle CTRL_C_EVENT
+        if hasattr(signal, 'SIGBREAK'):
+            signal.signal(signal.SIGBREAK, async_signal_handler)
         logger.debug("Signal handlers set up for graceful shutdown")
 
 

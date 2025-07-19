@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAppContext } from "../context/AppContext";
+import { useDataManager } from "../context/DataManager";
 import webSocketService from "../services/websocket";
 import { useApi } from "../hooks/useApi";
 import api from "../services/api";
@@ -10,138 +11,57 @@ import {
 } from "../types";
 import { formatNumber, getThreatLevelColor } from "../utils";
 import {
-  Activity,
-  Shield,
-  AlertTriangle,
-  Network,
-  Database,
-} from "lucide-react";
-import {
   generateRandomDetections,
   generateRandomMetrics,
   generateRandomNetworkGraph,
 } from "../utils/dummyData";
+import { Activity, Shield, AlertTriangle, Network } from "lucide-react";
 import NetworkGraph from "./NetworkGraph";
 import LiveTrafficMonitor from "./LiveTrafficMonitor";
 import ThreatScorePanel from "./ThreatScorePanel";
 import MetricsPanel from "./MetricsPanel";
 import XAIPanel from "./XAIPanel";
 import DetectionDetails from "./DetectionDetails";
-
-// Component to load and unload dummy data
-const SampleDataButtons = () => {
-  const { state, dispatch } = useAppContext();
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSampleData, setHasSampleData] = useState(false);
-
-  // Check if we have sample data loaded
-  useEffect(() => {
-    // If we have detections and metrics, assume we have sample data
-    setHasSampleData(
-      Array.isArray(state.detections) &&
-        state.detections.length > 0 &&
-        state.metrics !== null
-    );
-  }, [state.detections, state.metrics]);
-
-  const loadDummyData = () => {
-    setIsLoading(true);
-
-    // Generate random data
-    const sampleDetections = generateRandomDetections(50);
-    const sampleMetrics = generateRandomMetrics();
-    const sampleNetworkGraph = generateRandomNetworkGraph();
-
-    // Update the app state with dummy data immediately to prevent flickering
-    dispatch({ type: "SET_DETECTIONS", payload: sampleDetections });
-    dispatch({ type: "SET_METRICS", payload: sampleMetrics });
-    dispatch({ type: "SET_NETWORK_GRAPH", payload: sampleNetworkGraph });
-    dispatch({ type: "SET_CONNECTION_STATUS", payload: true });
-
-    // Store a flag in localStorage to indicate we're using sample data
-    localStorage.setItem("ddosai_using_sample_data", "true");
-
-    // Short delay just for the button loading state
-    setTimeout(() => {
-      setIsLoading(false);
-      setHasSampleData(true);
-    }, 300);
-  };
-
-  const unloadDummyData = () => {
-    setIsLoading(true);
-
-    // Clear all data
-    dispatch({ type: "CLEAR_DATA" });
-
-    // Remove the sample data flag
-    localStorage.removeItem("ddosai_using_sample_data");
-
-    // Short delay just for the button loading state
-    setTimeout(() => {
-      setIsLoading(false);
-      setHasSampleData(false);
-    }, 300);
-  };
-
-  return (
-    <div className="flex space-x-2">
-      <button
-        onClick={loadDummyData}
-        disabled={isLoading || hasSampleData}
-        className="px-4 py-2 bg-blue-900/30 text-blue-300 border border-blue-700/30 rounded-md hover:bg-blue-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Database className="w-4 h-4 mr-2 inline" />
-        {isLoading ? "Loading..." : "Load Sample Data"}
-      </button>
-
-      <button
-        onClick={unloadDummyData}
-        disabled={isLoading || !hasSampleData}
-        className="px-4 py-2 bg-red-900/30 text-red-300 border border-red-700/30 rounded-md hover:bg-red-800/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <Database className="w-4 h-4 mr-2 inline" />
-        {isLoading ? "Unloading..." : "Unload Sample Data"}
-      </button>
-    </div>
-  );
-};
+import DataControls from "./DataControls";
 
 const Dashboard: React.FC = () => {
-  const { state, dispatch } = useAppContext();
+  const { state: appState, dispatch: appDispatch } = useAppContext();
+  const { state: dataState } = useDataManager();
+  const [selectedDetection, setSelectedDetection] =
+    useState<DetectionResult | null>(null);
 
   // Check if we're in offline mode - note that we consider the app "connected" even in offline mode
   // because we're using dummy data, so we check localStorage directly
   const isOfflineMode = localStorage.getItem("ddosai_offline_mode") === "true";
 
-  // If we don't have any data yet, load sample data automatically
-  useEffect(() => {
-    if (
-      (!state.detections || state.detections.length === 0) &&
-      !state.metrics &&
-      !state.networkGraph
-    ) {
-      console.log("No data available, loading sample data automatically");
-      // Generate random data
-      const sampleDetections = generateRandomDetections(50);
-      const sampleMetrics = generateRandomMetrics();
-      const sampleNetworkGraph = generateRandomNetworkGraph();
+  // Remove automatic data loading - let user click "Load Data" instead
+  // useEffect(() => {
+  //   if (
+  //     (!state.detections || state.detections.length === 0) &&
+  //     !state.metrics &&
+  //     !state.networkGraph
+  //   ) {
+  //     console.log("No data available, loading sample data automatically");
+  //     // Generate random data
+  //     const sampleDetections = generateRandomDetections(50);
+  //     const sampleMetrics = generateRandomMetrics();
+  //     const sampleNetworkGraph = generateRandomNetworkGraph();
 
-      // Update the app state with dummy data immediately to prevent flickering
-      dispatch({ type: "SET_DETECTIONS", payload: sampleDetections });
-      dispatch({ type: "SET_METRICS", payload: sampleMetrics });
-      dispatch({ type: "SET_NETWORK_GRAPH", payload: sampleNetworkGraph });
-    }
-  }, [state.detections, state.metrics, state.networkGraph, dispatch]);
+  //     // Update the app state with dummy data immediately to prevent flickering
+  //     dispatch({ type: "SET_DETECTIONS", payload: sampleDetections });
+  //     dispatch({ type: "SET_METRICS", payload: sampleMetrics });
+  //     dispatch({ type: "SET_NETWORK_GRAPH", payload: sampleNetworkGraph });
+  //   }
+  // }, [state.detections, state.metrics, state.networkGraph, dispatch]);
 
-  // API hooks for fetching data - disable API calls completely in offline mode
+  // API hooks for fetching data - disabled by default, only enabled when data is loaded
   const {
     data: detections,
     loading: detectionsLoading,
     refresh: refreshDetections,
   } = useApi(() => api.getDetections(50), {
-    immediate: !isOfflineMode,
-    refreshInterval: isOfflineMode ? 0 : 5000,
+    immediate: false, // Don't auto-start API calls
+    refreshInterval: 0, // Disable auto-refresh, let user control it
   });
 
   const {
@@ -149,8 +69,8 @@ const Dashboard: React.FC = () => {
     loading: metricsLoading,
     refresh: refreshMetrics,
   } = useApi(() => api.getSystemMetrics(), {
-    immediate: !isOfflineMode,
-    refreshInterval: isOfflineMode ? 0 : 3000,
+    immediate: false, // Don't auto-start API calls
+    refreshInterval: 0, // Disable auto-refresh, let user control it
   });
 
   const {
@@ -158,8 +78,8 @@ const Dashboard: React.FC = () => {
     loading: graphLoading,
     refresh: refreshGraph,
   } = useApi(() => api.getNetworkGraph(), {
-    immediate: !isOfflineMode,
-    refreshInterval: isOfflineMode ? 0 : 10000,
+    immediate: false, // Don't auto-start API calls
+    refreshInterval: 0, // Disable auto-refresh, let user control it
   });
 
   // In offline mode, we don't want to show loading states
@@ -172,15 +92,15 @@ const Dashboard: React.FC = () => {
     if (!isOfflineMode) {
       // Only set up WebSocket listeners if not in offline mode
       const handleDetection = (data: DetectionResult) => {
-        dispatch({ type: "ADD_DETECTION", payload: data });
+        appDispatch({ type: "ADD_DETECTION", payload: data });
       };
 
       const handleMetrics = (data: SystemMetrics) => {
-        dispatch({ type: "SET_METRICS", payload: data });
+        appDispatch({ type: "SET_METRICS", payload: data });
       };
 
       const handleGraph = (data: NetworkGraphType) => {
-        dispatch({ type: "SET_NETWORK_GRAPH", payload: data });
+        appDispatch({ type: "SET_NETWORK_GRAPH", payload: data });
       };
 
       // Subscribe to WebSocket events
@@ -195,40 +115,38 @@ const Dashboard: React.FC = () => {
         webSocketService.off("graph", handleGraph);
       };
     }
-  }, [isOfflineMode, dispatch]);
+  }, [isOfflineMode, appDispatch]);
 
   // Update state when API data changes - only if not in offline mode
   useEffect(() => {
     if (!isOfflineMode && detections?.data) {
-      dispatch({ type: "SET_DETECTIONS", payload: detections.data });
+      appDispatch({ type: "SET_DETECTIONS", payload: detections.data });
     }
-  }, [detections, dispatch, isOfflineMode]);
+  }, [detections, appDispatch, isOfflineMode]);
 
   useEffect(() => {
     if (!isOfflineMode && metrics?.data) {
-      dispatch({ type: "SET_METRICS", payload: metrics.data });
+      appDispatch({ type: "SET_METRICS", payload: metrics.data });
     }
-  }, [metrics, dispatch, isOfflineMode]);
+  }, [metrics, appDispatch, isOfflineMode]);
 
   useEffect(() => {
     if (!isOfflineMode && networkGraph?.data) {
-      dispatch({ type: "SET_NETWORK_GRAPH", payload: networkGraph.data });
+      appDispatch({ type: "SET_NETWORK_GRAPH", payload: networkGraph.data });
     }
-  }, [networkGraph, dispatch, isOfflineMode]);
+  }, [networkGraph, appDispatch, isOfflineMode]);
 
-  const maliciousCount = Array.isArray(state.detections)
-    ? state.detections.filter((d) => d.is_malicious).length
+  const maliciousCount = Array.isArray(dataState.detections)
+    ? dataState.detections.filter((d: DetectionResult) => d.is_malicious).length
     : 0;
-
-  const [selectedDetection, setSelectedDetection] =
-    useState<DetectionResult | null>(null);
 
   // Handle node click in network graph
   const handleNodeClick = (node: any) => {
     // Find a detection related to this node
-    if (Array.isArray(state.detections)) {
-      const nodeDetection = state.detections.find(
-        (d) => d.src_ip === node.ip_address || d.dst_ip === node.ip_address
+    if (Array.isArray(dataState.detections)) {
+      const nodeDetection = dataState.detections.find(
+        (d: DetectionResult) =>
+          d.src_ip === node.ip_address || d.dst_ip === node.ip_address
       );
       if (nodeDetection) {
         setSelectedDetection(nodeDetection);
@@ -247,7 +165,7 @@ const Dashboard: React.FC = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
         <div className="flex items-center space-x-4">
-          <SampleDataButtons />
+          <DataControls showBoth={true} />
           <button
             onClick={() => {
               refreshDetections();
@@ -266,7 +184,7 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="Total Packets"
-          value={state.metrics?.packets_processed || 0}
+          value={dataState.metrics?.packets_processed || 0}
           icon={<Activity className="w-6 h-6" />}
           color="text-primary"
           loading={actualMetricsLoading}
@@ -280,14 +198,16 @@ const Dashboard: React.FC = () => {
         />
         <MetricCard
           title="Threat Level"
-          value={`${state.metrics?.threat_level || 0}/5`}
+          value={`${dataState.metrics?.threat_level || 0}/5`}
           icon={<AlertTriangle className="w-6 h-6" />}
-          color={getThreatLevelColor((state.metrics?.threat_level || 0) * 20)}
+          color={getThreatLevelColor(
+            (dataState.metrics?.threat_level || 0) * 20
+          )}
           loading={actualMetricsLoading}
         />
         <MetricCard
           title="Active Connections"
-          value={state.metrics?.active_connections || 0}
+          value={dataState.metrics?.active_connections || 0}
           icon={<Network className="w-6 h-6" />}
           color="text-info"
           loading={actualMetricsLoading}
@@ -299,11 +219,11 @@ const Dashboard: React.FC = () => {
         {/* Left Column */}
         <div className="space-y-6">
           {/* Live Traffic Monitor */}
-          <LiveTrafficMonitor detections={state.detections} />
+          <LiveTrafficMonitor detections={dataState.detections} />
 
           {/* Threat Score Panel */}
           <ThreatScorePanel
-            detections={state.detections}
+            detections={dataState.detections}
             loading={actualDetectionsLoading}
             onSelectDetection={handleSelectDetection}
           />
@@ -313,7 +233,7 @@ const Dashboard: React.FC = () => {
         <div className="space-y-6">
           {/* Metrics Panel */}
           <MetricsPanel
-            metrics={state.metrics}
+            metrics={dataState.metrics}
             loading={actualMetricsLoading}
           />
 
@@ -325,7 +245,7 @@ const Dashboard: React.FC = () => {
       {/* Network Graph (Full Width) */}
       <div className="w-full">
         <NetworkGraph
-          data={state.networkGraph}
+          data={dataState.networkGraph}
           loading={actualGraphLoading}
           height={500}
           onNodeClick={handleNodeClick}
@@ -334,12 +254,10 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Detection Details Modal */}
-      {state.selectedDetection && (
+      {selectedDetection && (
         <DetectionDetails
-          detection={state.selectedDetection}
-          onClose={() =>
-            dispatch({ type: "SET_SELECTED_DETECTION", payload: null })
-          }
+          detection={selectedDetection}
+          onClose={() => setSelectedDetection(null)}
         />
       )}
     </div>
