@@ -85,6 +85,7 @@ interface SimulationContextType {
   dispatch: React.Dispatch<SimulationAction>;
   startSimulation: (config: SimulationConfig) => Promise<boolean>;
   stopSimulation: () => Promise<boolean>;
+  forceStopSimulation: () => Promise<boolean>;
   getUserIP: () => Promise<string>;
   refreshSimulationStatus: () => Promise<void>;
 }
@@ -184,17 +185,71 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({
   }, [state.currentSimulation]);
 
   const refreshSimulationStatus = useCallback(async () => {
-    if (state.currentSimulation?.simulation_id) {
-      try {
-        // In a real implementation, you'd have an API to get simulation status
-        // For now, we'll keep the current state
-        console.log(
-          "Refreshing simulation status for:",
-          state.currentSimulation.simulation_id
-        );
-      } catch (error) {
-        console.error("Failed to refresh simulation status:", error);
+    try {
+      // Check if backend is reachable first
+      const healthResponse = await api.health();
+      if (healthResponse.status !== 200) {
+        // Backend is down, clear simulation state
+        dispatch({ type: "CLEAR_SIMULATION" });
+        dispatch({ type: "SET_RUNNING", payload: false });
+        return;
       }
+
+      // Check actual simulation status from backend
+      const statusResponse = await api.getAllSimulationStatus();
+      if (statusResponse.status === 200) {
+        const backendStatus = statusResponse.data;
+
+        // If no active simulations on backend but frontend thinks there is one
+        if (backendStatus.active_simulations === 0 && state.isRunning) {
+          console.log(
+            "Backend has no active simulations, clearing frontend state"
+          );
+          dispatch({ type: "CLEAR_SIMULATION" });
+          dispatch({ type: "SET_RUNNING", payload: false });
+        }
+
+        // Update simulation state based on backend reality
+        if (state.currentSimulation && backendStatus.active_simulations > 0) {
+          const updatedSimulation = {
+            ...state.currentSimulation,
+            status: "running" as const,
+          };
+          dispatch({ type: "SET_SIMULATION", payload: updatedSimulation });
+        }
+      }
+    } catch (error) {
+      console.error(
+        "Failed to refresh simulation status, clearing state:",
+        error
+      );
+      // If we can't reach backend, clear simulation state
+      dispatch({ type: "CLEAR_SIMULATION" });
+      dispatch({ type: "SET_RUNNING", payload: false });
+    }
+  }, [state.currentSimulation, state.isRunning]);
+
+  const forceStopSimulation = useCallback(async () => {
+    try {
+      // Force clear simulation state regardless of backend response
+      dispatch({ type: "CLEAR_SIMULATION" });
+      dispatch({ type: "SET_RUNNING", payload: false });
+
+      // Try to notify backend if possible
+      if (state.currentSimulation?.simulation_id) {
+        try {
+          await api.stopSimulation(state.currentSimulation.simulation_id);
+        } catch (error) {
+          console.log(
+            "Backend not reachable for stop notification, state cleared anyway"
+          );
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Force stop failed:", error);
+      return false;
     }
   }, [state.currentSimulation]);
 
@@ -205,6 +260,7 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({
         dispatch,
         startSimulation,
         stopSimulation,
+        forceStopSimulation,
         getUserIP,
         refreshSimulationStatus,
       }}

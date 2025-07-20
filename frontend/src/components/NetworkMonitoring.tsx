@@ -11,6 +11,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import api from "../services/api";
+import webSocketService from "../services/websocket";
 
 interface NetworkStats {
   bytes_sent: number;
@@ -137,16 +138,80 @@ const NetworkMonitoring: React.FC<NetworkMonitoringProps> = ({
     }
   };
 
-  // Auto-refresh effect
+  // Auto-refresh effect and WebSocket integration
   useEffect(() => {
+    // WebSocket listeners for real-time updates
+    const handleNetworkMonitoringUpdate = (data: NetworkMonitoringData) => {
+      console.log("Received real-time monitoring update:", data);
+      setMonitoringData(data);
+      setError(null);
+    };
+
+    const handleSimulationAttackDetected = (data: any) => {
+      console.log("Received simulation attack detection:", data);
+      // Force refresh monitoring data to show new detection
+      fetchMonitoringData();
+    };
+
+    const handleSimulationStarted = (data: any) => {
+      console.log("Simulation started:", data);
+      setAutoRefresh(true); // Auto-enable refresh during simulation
+      fetchMonitoringData();
+    };
+
+    const handleSimulationCompleted = (data: any) => {
+      console.log("Simulation completed:", data);
+      fetchMonitoringData(); // Final refresh
+    };
+
+    // Subscribe to WebSocket events
+    webSocketService.on(
+      "network_monitoring_update",
+      handleNetworkMonitoringUpdate
+    );
+    webSocketService.on(
+      "simulation_attack_detected",
+      handleSimulationAttackDetected
+    );
+    webSocketService.on("simulation_started", handleSimulationStarted);
+    webSocketService.on("simulation_completed", handleSimulationCompleted);
+
+    // Regular auto-refresh for non-WebSocket updates
     if (autoRefresh && monitoringData?.monitoring_active) {
-      const interval = setInterval(fetchMonitoringData, 3000); // Refresh every 3 seconds
+      const interval = setInterval(fetchMonitoringData, 5000); // Refresh every 5 seconds
       setRefreshInterval(interval);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        // Clean up WebSocket listeners
+        webSocketService.off(
+          "network_monitoring_update",
+          handleNetworkMonitoringUpdate
+        );
+        webSocketService.off(
+          "simulation_attack_detected",
+          handleSimulationAttackDetected
+        );
+        webSocketService.off("simulation_started", handleSimulationStarted);
+        webSocketService.off("simulation_completed", handleSimulationCompleted);
+      };
     } else if (refreshInterval) {
       clearInterval(refreshInterval);
       setRefreshInterval(null);
     }
+
+    // Clean up WebSocket listeners when component unmounts
+    return () => {
+      webSocketService.off(
+        "network_monitoring_update",
+        handleNetworkMonitoringUpdate
+      );
+      webSocketService.off(
+        "simulation_attack_detected",
+        handleSimulationAttackDetected
+      );
+      webSocketService.off("simulation_started", handleSimulationStarted);
+      webSocketService.off("simulation_completed", handleSimulationCompleted);
+    };
   }, [autoRefresh, monitoringData?.monitoring_active, fetchMonitoringData]);
 
   // Initial data fetch

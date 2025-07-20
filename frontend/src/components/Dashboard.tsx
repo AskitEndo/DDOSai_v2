@@ -21,7 +21,6 @@ import LiveTrafficMonitor from "./LiveTrafficMonitor";
 import ThreatScorePanel from "./ThreatScorePanel";
 import MetricsPanel from "./MetricsPanel";
 import XAIPanel from "./XAIPanel";
-import DetectionDetails from "./DetectionDetails";
 import DataControls from "./DataControls";
 import NetworkMonitoring from "./NetworkMonitoring";
 
@@ -242,7 +241,13 @@ const Dashboard: React.FC = () => {
           />
 
           {/* XAI Panel */}
-          <XAIPanel detection={selectedDetection} loading={false} />
+          <div
+            className={`transition-all duration-300 ${
+              selectedDetection ? "ring-2 ring-blue-500/50 rounded-lg" : ""
+            }`}
+          >
+            <XAIPanel detection={selectedDetection} loading={false} />
+          </div>
         </div>
       </div>
 
@@ -257,13 +262,7 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* Detection Details Modal */}
-      {selectedDetection && (
-        <DetectionDetails
-          detection={selectedDetection}
-          onClose={() => setSelectedDetection(null)}
-        />
-      )}
+      {/* Removed Detection Details Modal - using XAI Panel instead */}
     </div>
   );
 };

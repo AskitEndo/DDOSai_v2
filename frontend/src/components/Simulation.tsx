@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSimulation } from "../context/SimulationContext";
+import webSocketService from "../services/websocket";
 import {
   Play,
   Square,
@@ -78,7 +79,14 @@ const getSeverityColor = (severity: string) => {
 };
 
 const Simulation: React.FC = () => {
-  const { state, startSimulation, stopSimulation, getUserIP } = useSimulation();
+  const {
+    state,
+    startSimulation,
+    stopSimulation,
+    forceStopSimulation,
+    getUserIP,
+    refreshSimulationStatus,
+  } = useSimulation();
 
   const [simulationConfig, setSimulationConfig] = useState({
     target_ip: "",
@@ -96,6 +104,7 @@ const Simulation: React.FC = () => {
     "checking" | "connected" | "disconnected"
   >("checking");
   const [isDetectingIP, setIsDetectingIP] = useState(false);
+  const [simulationMessage, setSimulationMessage] = useState<string>("");
 
   // Auto-detect user IP on component mount
   useEffect(() => {
@@ -116,7 +125,7 @@ const Simulation: React.FC = () => {
     detectIP();
   }, [getUserIP, simulationConfig.target_ip]);
 
-  // Check connection status
+  // Check connection status and refresh simulation state
   useEffect(() => {
     const checkConnection = async () => {
       try {
@@ -126,14 +135,90 @@ const Simulation: React.FC = () => {
         setConnectionStatus(
           response.status === 200 ? "connected" : "disconnected"
         );
+
+        // If connected, refresh simulation status to sync with backend
+        if (response.status === 200) {
+          await refreshSimulationStatus();
+        }
       } catch (error) {
         setConnectionStatus("disconnected");
+        // If disconnected, we can't trust simulation state
+        console.log("Backend disconnected, simulation state may be stale");
       }
     };
 
     checkConnection();
     const interval = setInterval(checkConnection, 30000); // Check every 30s
     return () => clearInterval(interval);
+  }, [refreshSimulationStatus]);
+
+  // WebSocket listeners for real-time simulation feedback
+  useEffect(() => {
+    const handleSimulationStarted = (data: any) => {
+      console.log("Real-time simulation started:", data);
+      // Update simulation state to show it's really running
+      setSimulationMessage(
+        `REAL ${data.attack_type} simulation started against ${data.target_ip}:${data.target_port}. Attack packets are being generated at ${data.packet_rate} packets/second.`
+      );
+    };
+
+    const handleSimulationAttackDetected = (data: any) => {
+      console.log("Real-time attack detected:", data);
+      // Show live attack progress
+      setSimulationMessage(
+        `LIVE ATTACK: ${data.attack_type} packet sent to ${data.target}. ${
+          data.packets_sent
+        } packets sent so far. Threat detected with ${Math.round(
+          data.detection.confidence * 100
+        )}% confidence.`
+      );
+    };
+
+    const handleSimulationCompleted = (data: any) => {
+      console.log("Real-time simulation completed:", data);
+      setSimulationMessage(
+        `Simulation completed! Total ${data.packets_sent} attack packets were sent to ${data.target}. The attack was successfully detected by the AI system.`
+      );
+    };
+
+    const handleNetworkMonitoringUpdate = (data: any) => {
+      if (data.simulation_active) {
+        console.log("Network monitoring update during simulation:", data);
+        setSimulationMessage(
+          `Real-time monitoring: ${
+            data.detected_attacks?.length || 0
+          } attacks detected. ${
+            data.total_monitored_packets || 0
+          } packets analyzed.`
+        );
+      }
+    };
+
+    // Subscribe to WebSocket events
+    webSocketService.on("simulation_started", handleSimulationStarted);
+    webSocketService.on(
+      "simulation_attack_detected",
+      handleSimulationAttackDetected
+    );
+    webSocketService.on("simulation_completed", handleSimulationCompleted);
+    webSocketService.on(
+      "network_monitoring_update",
+      handleNetworkMonitoringUpdate
+    );
+
+    // Clean up listeners on component unmount
+    return () => {
+      webSocketService.off("simulation_started", handleSimulationStarted);
+      webSocketService.off(
+        "simulation_attack_detected",
+        handleSimulationAttackDetected
+      );
+      webSocketService.off("simulation_completed", handleSimulationCompleted);
+      webSocketService.off(
+        "network_monitoring_update",
+        handleNetworkMonitoringUpdate
+      );
+    };
   }, []);
 
   const handleConfigChange = (field: string, value: string | number) => {
@@ -157,9 +242,27 @@ const Simulation: React.FC = () => {
   const handleStopSimulation = async () => {
     setIsStopping(true);
     try {
-      await stopSimulation();
+      const success = await stopSimulation();
+      if (!success) {
+        console.log("Normal stop failed, trying force stop");
+        await forceStopSimulation();
+      }
     } catch (error) {
       console.error("Failed to stop simulation:", error);
+      // Force stop as fallback
+      await forceStopSimulation();
+    } finally {
+      setIsStopping(false);
+    }
+  };
+
+  const handleForceStop = async () => {
+    setIsStopping(true);
+    try {
+      await forceStopSimulation();
+      setSimulationMessage("Simulation forcefully stopped and state cleared.");
+    } catch (error) {
+      console.error("Failed to force stop simulation:", error);
     } finally {
       setIsStopping(false);
     }
@@ -219,6 +322,19 @@ const Simulation: React.FC = () => {
             </div>
             <div className="text-blue-300 text-sm">
               Duration: {state.currentSimulation.duration}s
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-time Simulation Messages */}
+      {simulationMessage && (
+        <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <Activity className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0 animate-pulse" />
+            <div>
+              <h3 className="text-green-300 font-medium">Real-time Update</h3>
+              <p className="text-green-400 text-sm mt-1">{simulationMessage}</p>
             </div>
           </div>
         </div>
@@ -401,8 +517,8 @@ const Simulation: React.FC = () => {
           </div>
 
           {/* Control Buttons */}
-          <div className="mt-6 flex space-x-3">
-            {!state.currentSimulation ? (
+          <div className="mt-6 flex flex-col space-y-3">
+            {!state.currentSimulation || !state.isRunning ? (
               <button
                 onClick={handleStartSimulation}
                 disabled={
@@ -410,7 +526,7 @@ const Simulation: React.FC = () => {
                   !simulationConfig.target_ip ||
                   connectionStatus !== "connected"
                 }
-                className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                className="flex items-center justify-center px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
               >
                 {isStarting ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
@@ -420,19 +536,44 @@ const Simulation: React.FC = () => {
                 {isStarting ? "Starting..." : "Start Simulation"}
               </button>
             ) : (
-              <button
-                onClick={handleStopSimulation}
-                disabled={isStopping}
-                className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
-              >
-                {isStopping ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                ) : (
-                  <Square className="w-4 h-4 mr-2" />
-                )}
-                {isStopping ? "Stopping..." : "Stop Simulation"}
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={handleStopSimulation}
+                  disabled={isStopping}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors"
+                >
+                  {isStopping ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  ) : (
+                    <Square className="w-4 h-4 mr-2" />
+                  )}
+                  {isStopping ? "Stopping..." : "Stop Simulation"}
+                </button>
+                <button
+                  onClick={handleForceStop}
+                  disabled={isStopping}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md transition-colors text-sm"
+                  title="Force stop if normal stop doesn't work"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Force Stop & Clear State
+                </button>
+              </div>
             )}
+
+            {/* Connection Warning */}
+            {connectionStatus !== "connected" &&
+              (state.currentSimulation || state.isRunning) && (
+                <div className="mt-2 p-2 bg-yellow-900/20 border border-yellow-700 rounded-md">
+                  <div className="flex items-center space-x-2 text-yellow-300 text-xs">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>
+                      Backend disconnected. Simulation state may be outdated.
+                      Use "Force Stop" to clear.
+                    </span>
+                  </div>
+                </div>
+              )}
           </div>
 
           {/* Warning */}

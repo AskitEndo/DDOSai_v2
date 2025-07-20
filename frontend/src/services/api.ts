@@ -130,6 +130,17 @@ export const api = {
       url: `/api/simulate/status?simulation_id=${simulationId}`,
     }),
 
+  getAllSimulationStatus: () =>
+    request<{
+      active_simulations: number;
+      simulations: any[];
+      total_attacks_generated: number;
+      recent_detections: number;
+    }>({
+      method: "GET",
+      url: "/api/simulate/status",
+    }),
+
   // Network monitoring for cross-device attacks
   getNetworkMonitoringData: () =>
     request<{
