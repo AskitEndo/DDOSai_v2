@@ -1,108 +1,590 @@
-# DDoS.AI Platform: Complete Guide
+# DDoS.AI Platform: Complete Setup & Usage Guide
 
-## 🎯 Latest Updates - Cross-Device Attack Monitoring
+## 🚀 Quick Overview
 
-### New Features Added in Version 2.0
+DDoS.AI is an advanced AI-powered platform for detecting and analyzing DDoS attacks in real-time. This comprehensive guide covers everything from basic setup to advanced cross-device attack testing and AI model training.
 
-**🌐 Real Cross-Device Attack Testing**
+**Current Phase**: Detection & Analysis | **Next Phase**: Mitigation & Prevention
 
-- **Target Server Setup**: Use `start_target_server.bat` to create attack targets on separate machines
-- **Live Network Monitoring**: Real-time packet capture and analysis using `psutil`
-- **Cross-Device Detection**: Attacks from PC A instantly visible on PC B's dashboard
-- **WebSocket Broadcasting**: Real-time attack notifications across all connected clients
+## � Quick Navigation Index
 
-**📡 Enhanced Network Monitoring Panel**
+| #   | Topic                    | Description                     | Link                                                   |
+| --- | ------------------------ | ------------------------------- | ------------------------------------------------------ |
+| 1   | **Platform Setup**       | Basic installation and startup  | [→ Setup Guide](#1-platform-setup)                     |
+| 2   | **Cross-Device Testing** | Real attack testing between PCs | [→ Cross-Device Guide](#2-cross-device-attack-testing) |
+| 3   | **AI Model Training**    | Train custom detection models   | [→ Training Guide](#3-ai-model-training)               |
+| 4   | **Attack Simulation**    | Generate and test attacks       | [→ Simulation Guide](#4-attack-simulation)             |
+| 5   | **Dashboard Usage**      | Navigate the web interface      | [→ Dashboard Guide](#5-dashboard-usage)                |
+| 6   | **Network Monitoring**   | Real-time traffic analysis      | [→ Monitoring Guide](#6-network-monitoring)            |
+| 7   | **API Integration**      | Programmatic access             | [→ API Guide](#7-api-integration)                      |
+| 8   | **Deployment**           | Production deployment           | [→ Deployment Guide](#8-production-deployment)         |
+| 9   | **Troubleshooting**      | Common issues and fixes         | [→ Troubleshooting](#9-troubleshooting)                |
+| 10  | **Advanced Features**    | Custom configurations           | [→ Advanced Guide](#10-advanced-features)              |
 
-- **Live Statistics**: Real bytes sent/received, packet counts, error rates
-- **Attack Visualization**: Source/destination IPs, protocols, severity levels
-- **Auto-Refresh**: 3-second intervals during active monitoring
-- **Attack History**: Chronological list of detected attacks with full details
+---
 
-**🔄 Unified Data Architecture**
+## 1. Platform Setup
 
-- **Backend-First Loading**: Single source of truth eliminating duplicate dummy data
-- **Offline Fallback**: Works without backend connection using local dummy data
-- **Consistent Data Types**: All sources mapped to unified TypeScript interfaces
-- **Real-Time Sync**: WebSocket updates across all dashboard components
+### Prerequisites
 
-This guide provides comprehensive information on how to run, train, monitor, and use the DDoS.AI platform with the new cross-device attack monitoring capabilities.
+- **OS**: Windows 10+, Ubuntu 18.04+, macOS 10.15+
+- **RAM**: 8GB minimum (16GB recommended)
+- **CPU**: 4 cores minimum (8 cores recommended)
+- **Storage**: 20GB free space
+- **Software**: Docker & Docker Compose, Python 3.9+, Node.js 18+
 
-## Table of Contents
+### Quick Start Options
 
-- [Cross-Device Attack Testing](#cross-device-attack-testing)
-- [Running the Platform](#running-the-platform)
-  - [Full Platform Setup](#full-platform-setup)
-  - [Target Server Setup](#target-server-setup)
-  - [Development Mode](#development-mode)
-- [Understanding the Platform](#understanding-the-platform)
-  - [Core Components](#core-components)
-  - [Cross-Device Architecture](#cross-device-architecture)
-  - [Real-Time Data Flow](#real-time-data-flow)
-- [Network Monitoring](#network-monitoring)
-  - [Live Traffic Analysis](#live-traffic-analysis)
-  - [Attack Detection](#attack-detection)
-  - [Cross-Device Alerts](#cross-device-alerts)
-- [Training the AI Models](#training-the-ai-models)
-  - [Using Sample Data](#using-sample-data)
-  - [Adding Your Own Data](#adding-your-own-data)
-  - [Custom Model Integration](#custom-model-integration)
-- [Running Real Attack Simulations](#running-real-attack-simulations)
-  - [Cross-Device Setup](#cross-device-setup)
-  - [Attack Configuration](#attack-configuration)
-  - [Monitoring Impact](#monitoring-impact)
-- [Dashboard Usage](#dashboard-usage)
-  - [Network Monitoring Panel](#network-monitoring-panel)
-  - [Attack Simulation Interface](#attack-simulation-interface)
-  - [Real-Time Visualization](#real-time-visualization)
-- [Monitoring & Analytics](#monitoring--analytics)
-  - [Prometheus Metrics](#prometheus-metrics)
-  - [Grafana Dashboards](#grafana-dashboards)
-  - [InfluxDB Time Series](#influxdb-time-series)
-- [Troubleshooting](#troubleshooting)
-  - [Cross-Device Issues](#cross-device-issues)
-  - [Network Monitoring Problems](#network-monitoring-problems)
-  - [Performance Tuning](#performance-tuning)
-
-## Cross-Device Attack Testing
-
-### Overview
-
-The DDoS.AI platform now supports real cross-device attack testing where you can launch actual network attacks from one PC (PC A) and monitor their impact on another PC (PC B) in real-time.
-
-### Setup Requirements
-
-**Hardware:**
-
-- Two computers on the same network (LAN or WiFi)
-- Minimum 4GB RAM per machine (8GB recommended)
-- Network connectivity between machines
-- Administrative privileges for network monitoring
-
-**Network Configuration:**
-
-- Both PCs must be on same subnet
-- Firewall rules allowing traffic on ports 3000, 8000, 8080
-- No network isolation between the test machines
-
-### Step-by-Step Cross-Device Setup
-
-#### 1. Prepare PC A (Attack Source)
+#### Option A: Docker (Recommended)
 
 ```bash
-# Clone and setup the main platform
+# Clone repository
 git clone https://github.com/AskitEndo/DDOSai_v2.git
 cd DDOSai_v2
 
-# Start the full platform
-.\run_dev.bat  # Windows
-./run_dev.sh   # Linux/macOS
+# Windows - Start development environment
+.\run_dev.bat
 
-# Verify platform is running
+# Linux/macOS - Start development environment
+chmod +x run_dev.sh && ./run_dev.sh
+```
+
+#### Option B: Manual Installation
+
+```bash
+# Backend setup
+cd backend
+python -m venv venv
+venv\Scripts\activate  # Windows
+source venv/bin/activate  # Linux/macOS
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Frontend setup (new terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+### Access Points
+
+- **Dashboard**: http://localhost:3000
+- **API Docs**: http://localhost:8000/docs
+- **Grafana**: http://localhost:3001
+- **Prometheus**: http://localhost:9090
+
+---
+
+## 2. Cross-Device Attack Testing
+
+### Overview
+
+Test real DDoS attacks between multiple machines on the same network. PC A generates attacks while PC B serves as the target, with real-time monitoring on both ends.
+
+### Setup Process
+
+#### Step 1: Prepare Target Machine (PC B)
+
+```bash
+# On target machine
+cd backend
+.\start_target_server.bat   # Windows
+./start_target_server.sh    # Linux/macOS
+
+# Verify target server (should show stats)
+curl http://[TARGET_IP]:8080/stats
+```
+
+#### Step 2: Configure Attack Machine (PC A)
+
+```bash
+# Start main platform
+.\run_dev.bat
+
+# Access dashboard
+# Go to: http://localhost:3000
+```
+
+#### Step 3: Configure Cross-Device Attack
+
+1. Open dashboard on PC A
+2. Click "Load from Backend" to initialize
+3. Start "Network Monitoring" panel
+4. Navigate to "Simulation" tab
+5. Enter PC B's IP address as target
+6. Select attack type (SYN Flood, UDP Flood, HTTP Flood)
+7. Configure packet rate and duration
+8. Launch attack
+
+#### Step 4: Monitor Real Impact
+
+- **PC A**: Watch outgoing traffic in Network Monitoring panel
+- **PC B**: Monitor target server logs and system resources
+- **Both**: Observe actual network activity in Task Manager
+
+### Attack Verification
+
+- Dashboard shows real network statistics using `psutil`
+- Target server displays incoming request counts
+- Task Manager shows actual network spikes on both machines
+- WebSocket updates provide real-time cross-device notifications
+
+---
+
+## 3. AI Model Training
+
+### Available Models
+
+1. **Autoencoder**: Anomaly detection (99.2% accuracy)
+2. **Graph Neural Network**: Network topology analysis
+3. **Reinforcement Learning**: Adaptive threat scoring
+4. **Consensus Engine**: Combined model decisions
+
+### Training with Sample Data
+
+```bash
+# Train all models with included samples
+python -m backend.ai.train_models --model all --dataset data/sample_traffic.csv
+
+# Train specific model
+python -m backend.ai.train_models --model autoencoder --epochs 100 --batch-size 64
+
+# Train with custom parameters
+python -m backend.ai.train_models \
+  --model gnn \
+  --dataset your_data.csv \
+  --learning-rate 0.001 \
+  --epochs 200
+```
+
+### Using Custom Data
+
+```bash
+# Format your data (CSV format required)
+# Columns: timestamp, src_ip, dst_ip, protocol, packets, bytes, label
+
+# Train with your data
+python -m backend.ai.train_models --model all --dataset path/to/your_data.csv
+
+# Validate model performance
+python -m backend.ai.validate_models --dataset test_data.csv
+```
+
+### Model Performance Tuning
+
+```bash
+# Hyperparameter optimization
+python -m backend.ai.optimize_models --model autoencoder --trials 50
+
+# Export trained models
+python -m backend.ai.export_models --format onnx --output models/
+```
+
+---
+
+## 4. Attack Simulation
+
+### Supported Attack Types
+
+1. **SYN Flood**: TCP connection exhaustion
+2. **UDP Flood**: Bandwidth consumption
+3. **HTTP Flood**: Application layer attacks
+4. **Slowloris**: Connection pool exhaustion
+5. **Custom**: User-defined attack patterns
+
+### Web Interface Simulation
+
+1. Access dashboard: http://localhost:3000
+2. Navigate to "Simulation" tab
+3. Configure attack parameters:
+   - **Target IP**: Destination address
+   - **Attack Type**: Select from dropdown
+   - **Duration**: Attack length in seconds
+   - **Packet Rate**: Packets per second
+   - **Port**: Target port number
+4. Click "Start Attack" to begin
+
+### API-Based Simulation
+
+```bash
+# HTTP Flood attack
+curl -X POST http://localhost:8000/api/simulate/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attack_type": "HTTP_FLOOD",
+    "target_ip": "192.168.1.100",
+    "target_port": 80,
+    "duration": 60,
+    "packet_rate": 1000
+  }'
+
+# SYN Flood attack
+curl -X POST http://localhost:8000/api/simulate/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attack_type": "SYN_FLOOD",
+    "target_ip": "192.168.1.100",
+    "target_port": 80,
+    "duration": 30,
+    "packet_rate": 5000
+  }'
+```
+
+### Command Line Simulation
+
+```bash
+# Direct Python simulation
+python -m backend.simulation.attack_simulator \
+  --type syn_flood \
+  --target 192.168.1.100 \
+  --port 80 \
+  --duration 60 \
+  --rate 1000
+
+# Batch simulation with multiple attacks
+python -m backend.simulation.batch_attack \
+  --config simulation_config.json
+```
+
+---
+
+## 5. Dashboard Usage
+
+### Main Dashboard Components
+
+#### Network Monitoring Panel
+
+- **Live Statistics**: Real-time bytes sent/received, packet counts
+- **Attack Detection**: Automatic identification of anomalous traffic
+- **Source Analysis**: IP addresses and geographical locations
+- **Protocol Breakdown**: TCP, UDP, ICMP traffic distribution
+
+#### Attack Visualization
+
+- **Network Graph**: Interactive D3.js visualization of network topology
+- **Attack Flows**: Real-time visualization of attack patterns
+- **Threat Indicators**: Color-coded severity levels
+- **Historical Timeline**: Chronological attack history
+
+#### Control Interface
+
+- **Load Data**: Initialize dashboard with backend data
+- **Start Monitoring**: Begin real-time network capture
+- **Clear Data**: Reset dashboard state
+- **Export Results**: Save analysis results
+
+### Navigation Guide
+
+1. **Overview Tab**: System status and quick metrics
+2. **Network Tab**: Live traffic monitoring and analysis
+3. **Simulation Tab**: Attack generation and testing
+4. **Analytics Tab**: Historical data and trends
+5. **Settings Tab**: Configuration and preferences
+
+---
+
+## 6. Network Monitoring
+
+### Real-Time Traffic Analysis
+
+The platform uses `psutil` for genuine network monitoring, capturing actual packet statistics rather than simulated data.
+
+#### Monitoring Features
+
+- **Interface Statistics**: Bytes sent/received per network interface
+- **Connection Tracking**: Active TCP/UDP connections
+- **Process Monitoring**: Network usage by application
+- **Bandwidth Analysis**: Real-time throughput measurements
+
+#### Starting Network Monitoring
+
+```bash
+# Via Dashboard
+# 1. Access http://localhost:3000
+# 2. Click "Start Network Monitoring"
+# 3. Select network interface
+# 4. Set refresh interval (default: 3 seconds)
+
+# Via API
+curl -X POST http://localhost:8000/api/monitoring/start \
+  -H "Content-Type: application/json" \
+  -d '{"interface": "eth0", "interval": 3}'
+
+# Via Command Line
+python -m backend.monitoring.start_monitor --interface eth0 --interval 3
+```
+
+#### Attack Detection Algorithm
+
+1. **Baseline Learning**: Establish normal traffic patterns
+2. **Anomaly Detection**: Identify deviations using AI models
+3. **Threshold Analysis**: Compare against configurable limits
+4. **Pattern Recognition**: Detect known attack signatures
+5. **Consensus Decision**: Combine multiple detection methods
+
+---
+
+## 7. API Integration
+
+### Authentication
+
+```bash
+# Get API token
+curl -X POST http://localhost:8000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "admin"}'
+
+# Use token in requests
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8000/api/protected-endpoint
+```
+
+### Key Endpoints
+
+#### Attack Detection
+
+```bash
+# Get detection results
+GET /api/detection/results
+GET /api/detection/results/{attack_id}
+POST /api/detection/analyze
+
+# Real-time detection stream
+WS /ws/detection
+```
+
+#### Simulation Control
+
+```bash
+# Simulation management
+POST /api/simulate/start
+POST /api/simulate/stop
+GET /api/simulate/status
+GET /api/simulate/history
+```
+
+#### Model Management
+
+```bash
+# AI model operations
+GET /api/models/status
+POST /api/models/train
+POST /api/models/predict
+GET /api/models/metrics
+```
+
+---
+
+## 8. Production Deployment
+
+### Docker Production Setup
+
+```bash
+# Production deployment
+docker-compose -f docker-compose.prod.yml up -d --build
+
+# With monitoring stack
+docker-compose -f docker-compose.prod.yml \
+               -f monitoring/docker-compose.yml up -d
+
+# SSL/TLS setup
+./scripts/setup_ssl.sh your-domain.com
+```
+
+### Environment Configuration
+
+```bash
+# Production environment variables
+export DDOS_AI_ENV=production
+export DDOS_AI_SECRET_KEY="your-secret-key"
+export DDOS_AI_DB_URL="postgresql://user:pass@db:5432/ddosai"
+export DDOS_AI_REDIS_URL="redis://redis:6379"
+```
+
+### Security Hardening
+
+```bash
+# Apply security measures
+sudo ./scripts/security_hardening.sh
+
+# Configure firewall
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+### Backup & Recovery
+
+```bash
+# Backup database and models
+./scripts/backup_restore.sh backup
+
+# Restore from backup
+./scripts/backup_restore.sh restore backup_20250120.tar.gz
+```
+
+---
+
+## 9. Troubleshooting
+
+### Common Issues
+
+#### Cross-Device Connection Problems
+
+```bash
+# Check network connectivity
+ping [TARGET_IP]
+telnet [TARGET_IP] 8080
+
+# Verify firewall settings
+# Windows
+netsh advfirewall firewall add rule name="DDoS.AI" dir=in action=allow port=8080 protocol=TCP
+
+# Linux
+sudo ufw allow 8080/tcp
+```
+
+#### Performance Issues
+
+```bash
+# Check system resources
+htop  # Linux/macOS
+Get-Process | Sort-Object CPU -Descending | Select-Object -First 10  # PowerShell
+
+# Optimize database
+python -m backend.tools.optimize_db
+
+# Clear cache
+redis-cli FLUSHALL
+```
+
+#### Model Training Failures
+
+```bash
+# Check data format
+python -m backend.tools.validate_data --file your_data.csv
+
+# Monitor training progress
+tail -f logs/training.log
+
+# Reduce model complexity
+python -m backend.ai.train_models --model autoencoder --hidden-size 64
+```
+
+### Debugging Tools
+
+```bash
+# Enable debug logging
+export DDOS_AI_LOG_LEVEL=DEBUG
+
+# Monitor API requests
+tail -f logs/api.log
+
+# Check WebSocket connections
+python -m backend.tools.check_websockets
+```
+
+---
+
+## 10. Advanced Features
+
+### Custom Model Integration
+
+```python
+# Create custom detector
+from backend.ai.base_detector import BaseDetector
+
+class CustomDetector(BaseDetector):
+    def __init__(self):
+        super().__init__()
+
+    def train(self, data):
+        # Custom training logic
+        pass
+
+    def predict(self, features):
+        # Custom prediction logic
+        return prediction
+```
+
+### API Extensions
+
+```python
+# Add custom endpoints
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.post("/custom/endpoint")
+async def custom_function():
+    return {"message": "Custom functionality"}
+```
+
+### Data Pipeline Customization
+
+```python
+# Custom data ingestion
+from backend.ingestion.base_ingestor import BaseIngestor
+
+class CustomIngestor(BaseIngestor):
+    def process_data(self, raw_data):
+        # Custom processing logic
+        return processed_data
+```
+
+### Future Mitigation Features (Planned)
+
+The platform is designed to evolve from detection to active mitigation:
+
+1. **Automated Blocking**: Real-time IP blocking based on threat scores
+2. **Load Balancer Integration**: Dynamic traffic distribution
+3. **Firewall Rules**: Automatic rule generation and deployment
+4. **CDN Integration**: Cloud-based attack mitigation
+5. **Network Infrastructure**: Router and switch configuration
+6. **Response Automation**: Coordinated defense strategies
+
+#### Planned Mitigation Architecture
+
+```mermaid
+graph TB
+    subgraph "Detection Layer"
+        A[AI Detection Engine]
+        B[Real-time Monitoring]
+        C[Threat Scoring]
+    end
+
+    subgraph "Decision Layer"
+        D[Mitigation Controller]
+        E[Policy Engine]
+        F[Risk Assessment]
+    end
+
+    subgraph "Action Layer"
+        G[Firewall Rules]
+        H[Load Balancer]
+        I[CDN Protection]
+        J[ISP Coordination]
+    end
+
+    A --> D
+    B --> D
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    F --> H
+    F --> I
+    F --> J
+```
+
+This comprehensive guide covers all aspects of the DDoS.AI platform. For quick setup, refer to the main README.md file.
 curl http://localhost:8000/health
+
 # Should return: {"status": "healthy"}
 
 # Access dashboard at: http://localhost:3000
-```
+
+````
 
 #### 2. Prepare PC B (Target Machine)
 
@@ -117,7 +599,7 @@ cd DDOSai_v2/backend
 
 # Note the target IP address displayed
 # Target server runs on: http://[PC_B_IP]:8080
-```
+````
 
 #### 3. Configure Cross-Device Monitoring
 
